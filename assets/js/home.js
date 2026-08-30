@@ -69,8 +69,8 @@ if (FAQ.length) {
 }
 
 /* --- parallax da foto do hero --- */
-/* A foto desce a ~18% da velocidade da rolagem, o que dá profundidade sem
-   enjoar. Tudo dentro de rAF e só enquanto o hero está na tela; quem pede
+/* A foto desce a ~26% da velocidade da rolagem, o que dá profundidade
+   perceptível. Tudo dentro de rAF e só enquanto o hero está na tela; quem pede
    movimento reduzido não recebe nada. */
 if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
   const hero = document.querySelector('.hero');
@@ -80,7 +80,7 @@ if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
     const aplicar = () => {
       agendado = false;
       const fim = hero.offsetTop + hero.offsetHeight;
-      if (scrollY < fim) foto.style.setProperty('--paralaxe', `${(scrollY * 0.18).toFixed(1)}px`);
+      if (scrollY < fim) foto.style.setProperty('--paralaxe', `${(scrollY * 0.26).toFixed(1)}px`);
     };
     addEventListener('scroll', () => {
       if (!agendado) { agendado = true; requestAnimationFrame(aplicar); }

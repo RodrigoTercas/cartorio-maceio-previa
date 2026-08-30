@@ -219,19 +219,24 @@ ul,ol{padding-left:1.15rem}
    o parallax nesse caso. */
 .hero picture{position:absolute;inset:0;z-index:-2;display:block;
   transform:translate3d(0,var(--paralaxe,0px),0);will-change:transform}
-/* Duas fases: a entrada assenta a foto (zoom-out + fade, perceptível de
-   imediato) e depois o respiro lento contínuo assume. A segunda começa
-   exatamente onde a primeira termina (scale 1), sem salto. */
+/* Duas fases: a entrada assenta a foto (zoom-out + fade) e depois um
+   passeio de câmera contínuo assume — quatro pontos de parada que zoom
+   e deslizam por regiões diferentes da foto antes de voltar ao início.
+   Regra de segurança das paradas: |translate| ≤ (scale − 1) / 2, senão a
+   borda da imagem entra no quadro. */
 .hero__fundo{width:100%;height:100%;object-fit:cover;
   animation:hero-entrada 2.4s cubic-bezier(.22,.61,.36,1) both,
-            hero-zoom 20s ease-in-out 2.4s infinite alternate}
+            hero-passeio 28s ease-in-out 2.4s infinite}
 @keyframes hero-entrada{
   from{transform:scale(1.16);opacity:.35}
   to{transform:scale(1);opacity:1}
 }
-@keyframes hero-zoom{
-  from{transform:scale(1) translateX(0)}
-  to{transform:scale(1.12) translateX(-2%)}
+@keyframes hero-passeio{
+  0%  {transform:scale(1)    translate(0,0)}
+  25% {transform:scale(1.13) translate(-3%,-1.5%)}   /* mergulha à direita da baía */
+  50% {transform:scale(1.19) translate(2%,-3%)}      /* sobe até o Pão de Açúcar */
+  75% {transform:scale(1.10) translate(3%,1.2%)}     /* desliza de volta pela água */
+  100%{transform:scale(1)    translate(0,0)}
 }
 /* Gradiente horizontal puro: um ângulo diagonal escurece a foto inteira
    quando o hero fica alto (tela estreita, texto em mais linhas). */
