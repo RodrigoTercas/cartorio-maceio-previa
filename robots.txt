@@ -1,3 +1,2 @@
-# Prévia temporária para avaliação — não indexar.
 User-agent: *
 Disallow: /

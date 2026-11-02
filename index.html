@@ -113,6 +113,8 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
     <a class="atalho" href="#certidoes"><span class="atalho__i"><svg aria-hidden="true"><use href="#i-arquivo"/></svg></span><span><b>2ª via de certidão</b><span>Nascimento, casamento, óbito</span></span></a>
     <a class="atalho" href="#atendimento" data-aba="agendar"><span class="atalho__i"><svg aria-hidden="true"><use href="#i-agenda"/></svg></span><span><b>Agendar atendimento</b><span>Escolha dia e horário</span></span></a>
     <a class="atalho" href="#atendimento" data-aba="custas"><span class="atalho__i"><svg aria-hidden="true"><use href="#i-calculadora"/></svg></span><span><b>Calcular custas</b><span>Tabela oficial de Alagoas</span></span></a>
+    <a class="atalho" href="#verificar"><span class="atalho__i"><svg aria-hidden="true"><use href="#i-doc-check"/></svg></span><span><b>Verificar documento</b><span>Selo digital, apostila, e-Notariado</span></span></a>
+    <a class="atalho" href="#atendimento" data-aba="pedidos"><span class="atalho__i"><svg aria-hidden="true"><use href="#i-relogio"/></svg></span><span><b>Acompanhar pedido</b><span>Pelo número do protocolo</span></span></a>
     <a class="atalho" href="#enotariado"><span class="atalho__i"><svg aria-hidden="true"><use href="#i-escudo"/></svg></span><span><b>Certificado notarizado</b><span>Gratuito, para o e-Notariado</span></span></a>
     <button class="atalho" type="button" data-abrir="assistente"><span class="atalho__i"><svg aria-hidden="true"><use href="#i-lupa-doc"/></svg></span><span><b>Descobrir o serviço</b><span>Responda 2 perguntas</span></span></button>
   </div>
@@ -238,6 +240,28 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
   </div>
 </section>
 
+<section class="secao" id="verificar">
+  <div class="container">
+    <div class="cab"><p class="olho">Verificar documento</p><h2>Confira se um documento é autêntico</h2><p class="sub">Cada tipo de documento tem uma consulta oficial e gratuita. O site não guarda o código: ele é copiado para você colar na consulta, que abre em nova aba.</p></div>
+    <div class="grade g-cards">
+      <form class="card" data-verificar="https://seloapp.tjal.jus.br/publico/selo" novalidate>
+        <h3>Selo digital de Alagoas</h3><p>Todo ato de cartório alagoano recebe um selo de fiscalização do Tribunal de Justiça, impresso no documento. A consulta mostra o ato a que o selo pertence.</p>
+        <div class="campo"><label for="vf-selo">Código do selo</label><input id="vf-selo" name="codigo" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Como impresso no documento"></div>
+        <button class="bt" type="submit">Consultar no TJAL</button><p class="mini">Lei estadual 9.778/2025, art. 13, § 1º.</p>
+      </form>
+      <form class="card" data-verificar="https://apostil.org.br/validation" novalidate>
+        <h3>Apostila da Haia</h3><p>Confirma a origem de um documento público brasileiro para uso no exterior. Informe o código impresso na apostila; o CRC é pedido na página do CNJ.</p>
+        <div class="campo"><label for="vf-apostila">Código da apostila</label><input id="vf-apostila" name="codigo" required autocomplete="off" autocapitalize="characters" spellcheck="false"></div>
+        <button class="bt" type="submit">Validar no CNJ</button><p class="mini">Decreto 8.660/2016; Resolução CNJ 228/2016.</p>
+      </form>
+      <div class="card"><h3>Certidão digital de registro civil</h3><p>Certidões de nascimento, casamento e óbito emitidas pelo portal oficial do Registro Civil são conferidas na validação do próprio portal.</p><a class="bt bt--linha" href="https://certidao.registrocivil.org.br/validar" target="_blank" rel="noopener">Validar certidão digital</a></div>
+      <div class="card"><h3>Ato do e-Notariado</h3><p>Escrituras, procurações e outros atos eletrônicos trazem chave de acesso e QR Code para conferência. A consulta exige cadastro gratuito na plataforma.</p><a class="bt bt--linha" href="https://www.e-notariado.org.br/consulta" target="_blank" rel="noopener">Consultar no e-Notariado</a><p class="mini">Provimento CNJ 149/2023 (Código Nacional de Normas).</p></div>
+      <div class="card"><h3>Cópia autenticada digitalmente</h3><p>A autenticação digital fica registrada na CENAD, central do e-Notariado. Para conferir, envie à central o mesmo arquivo recebido.</p><a class="bt bt--linha" href="https://www.e-notariado.org.br/" target="_blank" rel="noopener">Acessar o e-Notariado</a></div>
+      <div class="card"><h3>Documento emitido aqui?</h3><p>Se a consulta não esclarecer, fale com a equipe com o número do selo, o livro e a folha em mãos.</p><a class="bt bt--whats" data-whats="Olá! Gostaria de confirmar a autenticidade de um documento emitido pelo cartório.">Perguntar no WhatsApp</a></div>
+    </div>
+  </div>
+</section>
+
 <section class="secao secao--creme" id="atendimento">
   <div class="container">
     <div class="cab"><p class="olho">Atendimento</p><h2>Agende, calcule as custas e acompanhe</h2></div>
@@ -304,6 +328,10 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
       </div>
 
       <div id="pn-pedidos" role="tabpanel" aria-labelledby="aba-pedidos" hidden>
+        <form class="painel" id="form-acomp" novalidate style="margin-bottom:1.2rem">
+          <div class="linha2" style="align-items:end"><div class="campo"><label for="ac-prot">Acompanhar pelo protocolo</label><input id="ac-prot" name="prot" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ex.: AG-20261102-4821" style="text-transform:uppercase"></div><div class="campo"><button class="bt" type="submit">Consultar andamento</button></div></div>
+          <div id="ac-saida" aria-live="polite"></div>
+        </form>
         <p class="mini">Pedidos feitos neste aparelho. Ficam só no seu navegador.</p>
         <div class="grade" id="lista-pedidos" style="gap:.6rem"></div>
       </div>
@@ -450,7 +478,7 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
       <div><a class="marca" href="#inicio" aria-label="Início"><svg viewBox="0 0 92 80" aria-hidden="true"><use href="#i-aneis"/></svg><span><small>7ª Circunscrição</small><b>Casamento e Notas</b><i>Maceió · Alagoas</i></span></a>
         <p style="margin-top:1rem">Registro civil das pessoas naturais e tabelionato de notas.</p></div>
       <div><h4>Serviços</h4><ul><li><a href="#casamento">Casamento</a></li><li><a href="#servicos">Escrituras e procurações</a></li><li><a href="#certidoes">Certidões</a></li><li><a href="#enotariado">e-Notariado</a></li></ul></div>
-      <div><h4>Atendimento</h4><ul><li><a href="#atendimento">Agendar</a></li><li><a href="#duvidas">Dúvidas</a></li><li><a href="https://www.registrocivil.net/2873?targetForm=T" target="_blank" rel="noopener">Registro Civil on-line</a></li></ul></div>
+      <div><h4>Atendimento</h4><ul><li><a href="#atendimento">Agendar</a></li><li><a href="#atendimento" data-aba="pedidos">Acompanhar pedido</a></li><li><a href="#verificar">Verificar documento</a></li><li><a href="#duvidas">Dúvidas</a></li><li><a href="https://www.registrocivil.net/2873?targetForm=T" target="_blank" rel="noopener">Registro Civil on-line</a></li></ul></div>
       <div><h4>Institucional</h4><ul><li><a href="#ouvidoria">Ouvidoria</a></li><li><a href="#glossario">Glossário</a></li><li><a href="#empresas">Empresas e advogados</a></li><li><a href="#estrangeiros" lang="en">English · Español</a></li><li><a href="#transparencia">Transparência</a></li><li><a href="#feriados">Feriados 2026</a></li></ul></div>
     </div>
     <div class="rodape__base"><span>© <span id="ano">2026</span> 7ª Circunscrição — Casamento e Notas de Maceió/AL</span><span>Protótipo para avaliação</span></div>
