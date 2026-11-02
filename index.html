@@ -233,6 +233,25 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
         <div id="cert-saida" aria-live="polite"></div>
         <div class="acoes"><span class="mini">O valor segue a tabela do TJAL; a equipe confirma antes de emitir.</span><button class="bt" type="submit">Montar pedido</button></div>
       </form>
+      <form class="painel" id="form-cert-notas" novalidate style="margin-top:1.2rem">
+        <p class="olho">Atos de notas</p><h3 style="margin:.2rem 0 .8rem">Certidão de escritura, procuração ou ata</h3>
+        <div class="linha2">
+          <div class="campo"><label for="cn-tipo">Ato</label><select id="cn-tipo" name="tipo"><option>Escritura pública</option><option>Procuração pública</option><option>Ata notarial</option><option>Testamento público</option></select></div>
+          <div class="campo"><label for="cn-ano">Ano aproximado do ato</label><input id="cn-ano" name="ano" inputmode="numeric" placeholder="ex.: 2019"></div>
+        </div>
+        <div class="linha2">
+          <div class="campo"><label for="cn-livro">Livro e folha <span class="dica">(se souber)</span></label><input id="cn-livro" name="livro" placeholder="ex.: livro 412, fls. 87"></div>
+          <div class="campo"><label for="cn-fim">Para que serve</label><select id="cn-fim" name="fim"><option>Registro de imóveis</option><option>Processo judicial</option><option>Banco ou financiamento</option><option>Inventário</option><option>Outro</option></select></div>
+        </div>
+        <div class="campo"><label for="cn-partes">Nome das partes do ato</label><input id="cn-partes" name="partes" required placeholder="ex.: João da Silva e Maria Souza"></div>
+        <div class="linha2">
+          <div class="campo"><label for="cn-nome">Seu nome</label><input id="cn-nome" name="nome" required autocomplete="name"></div>
+          <div class="campo"><label for="cn-tel">WhatsApp</label><input id="cn-tel" name="tel" type="tel" inputmode="tel" required placeholder="(82) 90000-0000"></div>
+        </div>
+        <div id="cn-aviso"></div>
+        <div id="cn-saida" aria-live="polite"></div>
+        <div class="acoes"><span class="mini">Sai em papel ou digital, com selo. Valor pela tabela de Notas.</span><button class="bt" type="submit">Montar pedido</button></div>
+      </form>
     </div>
     <aside class="grade" style="align-content:start">
       <div class="card"><span class="tag tag--gratis">Gratuito por lei</span><h3>Registro de nascimento e de óbito</h3>
@@ -273,6 +292,7 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
         <button class="aba" role="tab" id="aba-agendar" aria-controls="pn-agendar" aria-selected="true">Agendar</button>
         <button class="aba" role="tab" id="aba-custas" aria-controls="pn-custas" aria-selected="false">Calcular custas</button>
         <button class="aba" role="tab" id="aba-pedidos" aria-controls="pn-pedidos" aria-selected="false">Meus pedidos <span id="n-pedidos"></span></button>
+        <button class="aba" role="tab" id="aba-pre" aria-controls="pn-pre" aria-selected="false">Pré-cadastro</button>
       </div>
 
       <div id="pn-agendar" role="tabpanel" aria-labelledby="aba-agendar">
@@ -325,6 +345,10 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
             <div class="campo"><label for="cu-ato">Ato</label><select id="cu-ato"></select></div>
             <div id="cu-campos"></div>
             <div id="cu-saida" aria-live="polite"></div>
+            <div class="painel" id="cu-comp" style="margin-top:1.5rem"><p class="olho">Comparar</p><h3 style="margin:.2rem 0 .6rem">Em cartório ou na Justiça?</h3>
+              <div class="linha2"><div class="campo"><label for="comp-tipo">O que você precisa</label><select id="comp-tipo"><option value="divorcio">Divórcio</option><option value="inventario">Inventário e partilha</option></select></div>
+                <div class="campo"><label for="comp-valor">Valor dos bens (R$)</label><input id="comp-valor" inputmode="numeric" placeholder="R$ 0,00"></div></div>
+              <div id="comp-saida"></div></div>
           </div>
           <aside class="grade" style="align-content:start">
             <div class="card"><h3>Como o valor é formado</h3><ul class="mini" style="padding-left:1.1rem;margin:0"><li><b>Emolumento</b>: o preço do ato, igual em todos os cartórios de Alagoas.</li><li><b>TSNR</b>: taxa de fiscalização do Judiciário, 26% sobre o emolumento.</li><li><b>ISS</b> municipal, quando incidir.</li></ul><p>Nada mais pode ser somado. Vale a tabela da data do ato; os valores são corrigidos pelo INPC em janeiro; desconto e cobrança parcial são proibidos.</p><p class="mini">Lei estadual 9.778/2025, arts. 2º, 6º, § 1º, 8º, 10, § 3º, e 24.</p></div>
@@ -344,6 +368,13 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
         </form>
         <p class="mini">Pedidos feitos neste aparelho. Ficam só no seu navegador.</p>
         <div class="grade" id="lista-pedidos" style="gap:.6rem"></div>
+      </div>
+
+      <div id="pn-pre" role="tabpanel" aria-labelledby="aba-pre" hidden>
+        <p class="sub" style="font-size:.95rem">Adiante os dados das pessoas do ato e leve o resumo impresso ao cartório. <b>Nada é enviado</b>: fica só neste aparelho, e você apaga quando quiser.</p>
+        <form id="form-pre" novalidate><div id="pre-pessoas"></div>
+          <div class="acoes"><button class="bt bt--linha bt--p" type="button" id="pre-mais">+ Adicionar pessoa</button><span style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="bt bt--linha bt--p" type="button" id="pre-apagar">Apagar tudo</button><button class="bt" type="submit">Gerar resumo</button></span></div></form>
+        <div id="pre-saida" aria-live="polite"></div>
       </div>
     </div>
   </div>
@@ -420,6 +451,13 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
   </div>
 </section>
 
+<section class="secao" id="links">
+  <div class="container">
+    <div class="cab"><p class="olho">Links úteis</p><h2>Portais oficiais, num só lugar</h2><p class="sub">Tudo abre em nova aba. O que é deste cartório fica nas outras seções.</p></div>
+    <div class="grade g-cards" id="lista-links"></div>
+  </div>
+</section>
+
 <section class="secao" id="ouvidoria">
   <div class="container grade g-lado">
     <div><div class="cab"><p class="olho">Ouvidoria</p><h2>Elogios, sugestões, reclamações e denúncias</h2><p class="sub">Canal próprio, com protocolo e prazo de resposta. Dúvidas sobre documentos e prazos vão mais rápido pelo <a href="#contato">contato</a>.</p></div>
@@ -489,7 +527,7 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
         <p style="margin-top:1rem">Registro civil das pessoas naturais e tabelionato de notas.</p></div>
       <div><h4>Serviços</h4><ul><li><a href="#casamento">Casamento</a></li><li><a href="#servicos">Escrituras e procurações</a></li><li><a href="#certidoes">Certidões</a></li><li><a href="#enotariado">e-Notariado</a></li></ul></div>
       <div><h4>Atendimento</h4><ul><li><a href="#atendimento">Agendar</a></li><li><a href="#atendimento" data-aba="pedidos">Acompanhar pedido</a></li><li><a href="#verificar">Verificar documento</a></li><li><a href="#duvidas">Dúvidas</a></li><li><a href="https://www.registrocivil.net/2873?targetForm=T" target="_blank" rel="noopener">Registro Civil on-line</a></li></ul></div>
-      <div><h4>Institucional</h4><ul><li><a href="#ouvidoria">Ouvidoria</a></li><li><a href="#glossario">Glossário</a></li><li><a href="#empresas">Empresas e advogados</a></li><li><a href="#estrangeiros" lang="en">English · Español</a></li><li><a href="#transparencia">Transparência</a></li><li><a href="#feriados">Feriados 2026</a></li></ul></div>
+      <div><h4>Institucional</h4><ul><li><a href="#ouvidoria">Ouvidoria</a></li><li><a href="#glossario">Glossário</a></li><li><a href="#empresas">Empresas e advogados</a></li><li><a href="#estrangeiros" lang="en">English · Español</a></li><li><a href="#links">Links úteis</a></li><li><a href="#transparencia">Transparência</a></li><li><a href="#feriados">Feriados 2026</a></li></ul></div>
     </div>
     <div class="rodape__base"><span>© <span id="ano">2026</span> 7ª Circunscrição — Casamento e Notas de Maceió/AL</span><span>Protótipo para avaliação</span></div>
   </div>
@@ -497,6 +535,7 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
 
 <div class="dock">
   <button class="ap" type="button" id="bt-apres" aria-controls="apres" aria-expanded="false"><svg aria-hidden="true"><use href="#i-raio"/></svg> O que mudou</button>
+  <button class="c" type="button" id="bt-chat" aria-controls="chat" aria-expanded="false" aria-label="Abrir o chat de atendimento"><svg aria-hidden="true"><use href="#i-usuario"/></svg></button>
   <a class="w" href="#" data-whats="Olá! Preciso de atendimento." aria-label="Falar no WhatsApp"><svg class="cheio" aria-hidden="true"><use href="#i-whatsapp"/></svg></a>
 </div>
 
@@ -506,6 +545,11 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
   <p style="margin:0 0 1rem"><button class="bt bt--ouro bt--p" type="button" data-tour>Fazer o tour guiado (7 passos)</button></p>
   <ol id="lista-apres"></ol>
 </aside>
+<div class="chat" id="chat" role="dialog" aria-label="Chat de atendimento (demonstração)" hidden>
+  <div class="chat__cab"><span><b>Atendente virtual</b><small>Demonstração · respostas pré-programadas</small></span><button class="fechar" type="button" id="chat-fechar" aria-label="Fechar"><svg aria-hidden="true"><use href="#i-fechar"/></svg></button></div>
+  <div class="chat__msgs" id="chat-msgs" aria-live="polite"></div>
+  <form class="chat__form" id="chat-form"><label class="so-leitor" for="chat-txt">Mensagem</label><input id="chat-txt" autocomplete="off" placeholder="Escreva ou escolha uma opção…"><button class="bt bt--p" type="submit">Enviar</button></form>
+</div>
 <div class="tour" id="tour" role="dialog" aria-labelledby="tour-titulo" hidden>
   <p class="olho" id="tour-passo"></p><h3 id="tour-titulo"></h3><p id="tour-texto"></p>
   <div class="tour__acoes"><button class="bt bt--linha bt--p" type="button" id="tour-fechar">Sair</button><span><button class="bt bt--linha bt--p" type="button" id="tour-ant">Anterior</button> <button class="bt bt--p" type="button" id="tour-prox">Próximo</button></span></div>

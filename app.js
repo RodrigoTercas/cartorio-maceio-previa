@@ -159,6 +159,12 @@ const MELHORIAS = [
   ['Agenda visual', 'Calendário com dias úteis, feriados bloqueados e horários livres/ocupados (ocupação simulada no protótipo).', '#atendimento'],
   ['Trilha do casamento', 'Progresso persistente em 5 etapas: simulação, documentos, habilitação agendada, certificado, cerimônia — na home e na seção.', '#casamento'],
   ['Tour guiado', 'Sete passos pelo protótipo, acionado no hero ou neste painel.', '#inicio'],
+  ['Links úteis', 'Doze portais oficiais (TJAL, Registro Civil, e-Proclamas, e-Notariado, CENSEC, Busca Testamento…) e o formulário de habilitação em PDF.', '#links'],
+  ['Certidão de ato notarial', 'Pedido de certidão de escritura, procuração, ata ou testamento, com protocolo CN- e aviso de sigilo para testamento.', '#certidoes'],
+  ['Pré-cadastro', 'Dados das pessoas do ato, com CPF validado, guardados só no aparelho; gera o resumo impresso e preenche o agendamento.', '#atendimento'],
+  ['Religioso com efeito civil e diligência', 'Prazo de 90 dias para registrar o termo religioso (CC, art. 1.516) e o acréscimo da tabela para cerimônia fora do cartório.', '#casamento'],
+  ['Cartório × Justiça', 'Divórcio e inventário lado a lado: requisitos, advogado, prazo e custas calculadas.', '#atendimento'],
+  ['Chat de atendimento', 'Atendente virtual com respostas pré-programadas (horário, documentos, custas, agendar) e passagem ao WhatsApp. Demonstração da API oficial.', '#inicio'],
   ['Lembretes no calendário', 'Arquivo .ics do agendamento (com alarme 2 h antes) e das datas do casamento: entrada da habilitação e cerimônia.', '#casamento'],
 ];
 
@@ -335,6 +341,7 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('[data-fechar-ir]')) $$('dialog[open]').forEach((d) => d.close());
   const ab = e.target.closest('[data-abrir="assistente"]'); if (ab) { e.preventDefault(); assistente('inicio', []); $('#dlg-assistente').showModal(); }
   const aba = e.target.closest('[data-aba]'); if (aba) { trocarAba(aba.dataset.aba); if (aba.dataset.aba === 'custas') custas.escolher(''); }
+  const cu = e.target.closest('[data-custas]'); if (cu) { e.preventDefault(); location.hash = '#atendimento'; trocarAba('custas'); custas.escolher(cu.dataset.custas); const l = $('#cu-local'); if (l) { l.value = 'urbana'; l.dispatchEvent(new Event('change', { bubbles: true })); } }
 });
 
 /* ------------------------------------------------------------------ assistente */
@@ -403,6 +410,11 @@ const simuladorCas = (function simulador() {
   f.addEventListener('change', () => { revisarVoceSilencioso(); if (atual === 2) $('#aviso-regime').innerHTML = htmlAlertas(alertasRegime(v())); });
   function revisarVoceSilencioso() { $('#part-pendente').hidden = !v().ec.some((e) => e !== 'solteiro'); }
 
+  function alertasLocal(x) {
+    if (x.local === 'religioso') return [['', '<b>Religioso com efeito civil:</b> a habilitação é a mesma do casamento civil e o cartório entrega o certificado ao celebrante. O termo da celebração deve ser levado a registro em <b>até 90 dias</b> (CC, art. 1.516, § 1º). Celebraram sem habilitar antes? Ainda dá para registrar, com habilitação posterior (§ 2º).']];
+    if (x.local === 'diligencia') return [['', '<b>Cerimônia fora do cartório:</b> acréscimo da tabela — R$ 63,35 na zona urbana (RCPN 1.3) ou R$ 164,94 na zona rural, em fim de semana ou feriado (RCPN 1.4). <a href="#atendimento" data-custas="casamento">Ver o cálculo</a>.']];
+    return [];
+  }
   function documentos(x) {
     const docs = ['Documento com foto e CPF de cada noivo(a)', 'Comprovante de residência de cada noivo(a)', 'Duas testemunhas maiores de 18 anos, com documento com foto'];
     x.ec.forEach((e, i) => {
@@ -415,7 +427,7 @@ const simuladorCas = (function simulador() {
     if (x.estr) docs.push('Estrangeiro(a): passaporte ou documento de identidade do país de origem', 'Estrangeiro(a): certidão de nascimento apostilada (ou legalizada) e traduzida por tradutor juramentado', 'Estrangeiro(a): prova do estado civil emitida no país de origem, apostilada e traduzida');
     if (x.regime !== 'parcial' || x.id.some((i) => i >= 70)) docs.push('Escritura de pacto antenupcial (lavrada antes da habilitação)');
     if (x.local === 'diligencia') docs.push('Endereço e horário do local da cerimônia');
-    if (x.local === 'religioso') docs.push('Nome da autoridade religiosa e do templo da celebração');
+    if (x.local === 'religioso') docs.push('Nome da autoridade religiosa e do templo da celebração', 'Termo da celebração religiosa assinado pelo celebrante, pelos noivos e por duas testemunhas (para o registro)');
     return docs;
   }
 
@@ -433,7 +445,8 @@ const simuladorCas = (function simulador() {
       datas = `<li><b>Entrada da habilitação</b><span>Entre ${dataBR(iniReal)} e ${dataBR(fim < hoje ? hoje : fim)}</span></li>
         <li><b>Certificado de habilitação</b><span>Em até 5 dias com a documentação completa (Lei 6.015/73, art. 67, § 1º)</span></li>
         <li><b>Validade do certificado</b><span>90 dias para celebrar (CC, art. 1.532)</span></li>
-        <li><b>O grande dia</b><span>${dataBR(alvo)} · ${LOC[x.local].toLowerCase()}</span></li>`;
+        <li><b>O grande dia</b><span>${dataBR(alvo)} · ${LOC[x.local].toLowerCase()}</span></li>${x.local === 'religioso' ? `<li><b>Registro do casamento religioso</b><span>Até ${dataBR(somaDias(alvo, 90))} — levar o termo ao cartório (CC, art. 1.516, § 1º)</span></li>` : ''}`;
+      if (x.local === 'religioso') eventos.push({ titulo: 'Prazo para registrar o casamento religioso', data: somaDias(alvo, 90), desc: 'Levar o termo da celebração ao cartório (CC, art. 1.516, § 1º).', alarme: '-P7D' });
       eventos.push({ titulo: 'Dar entrada na habilitação de casamento', data: iniReal, local: ENDERECO, desc: `Entrada entre ${dataBR(iniReal)} e ${dataBR(fim < hoje ? hoje : fim)}. Documentos conforme o roteiro do site. WhatsApp (82) 99381-2394.`, alarme: '-P2D' },
         { titulo: 'Último dia para a entrada da habilitação', data: fim < hoje ? hoje : fim, desc: 'Margem para o certificado (até 5 dias) sair antes da cerimônia.' },
         { titulo: 'Casamento', data: alvo, local: x.local === 'cartorio' ? ENDERECO : '', desc: `${LOC[x.local]} · regime: ${ROT[x.regime]}`, alarme: '-P7D' });
@@ -441,7 +454,7 @@ const simuladorCas = (function simulador() {
     $('#resultado-cas').innerHTML = `<div class="resumo"><p class="olho">${ic('check-circ')} Seu roteiro</p>
       <dl><dt>Noivos</dt><dd>${x.ec.map((e, i) => `${{ solteiro: 'solteiro(a)', divorciado: 'divorciado(a)', viuvo: 'viúvo(a)' }[e]}, ${x.id[i]} anos`).join(' · ')}${x.estr ? ' · um(a) estrangeiro(a)' : ''}</dd>
       <dt>Cerimônia</dt><dd>${LOC[x.local]}</dd><dt>Regime</dt><dd>${ROT[x.regime]}${pacto ? ' — com pacto antenupcial' : ''}</dd></dl></div>
-      ${htmlAlertas(alertasRegime(x))}${aperto}
+      ${htmlAlertas(alertasRegime(x).concat(alertasLocal(x)))}${aperto}
       <h3 style="margin-top:1.3rem">Linha do tempo</h3>
       <ol class="linha-tempo">${pacto ? '<li><b>Pacto antenupcial</b><span>Escritura no cartório, antes da habilitação</span></li>' : ''}${datas}</ol>
       <h3>Documentos de vocês</h3><div class="progresso"><i></i></div><p class="mini" data-prog></p>
@@ -449,6 +462,7 @@ const simuladorCas = (function simulador() {
       <div class="acoes"><span style="display:flex;gap:.5rem;flex-wrap:wrap">
         <a class="bt bt--whats" id="cas-enviar" target="_blank" rel="noopener">${ic('whatsapp')} Enviar roteiro</a>
         <button class="bt bt--linha" type="button" onclick="print()">${ic('impressora')} Imprimir</button>
+        <a class="bt bt--linha" href="assets/docs/formulario-habilitacao-casamento.pdf" target="_blank" rel="noopener">${ic('arquivo')} Formulário (PDF)</a>
         ${eventos.length ? `<button class="bt bt--linha" type="button" id="cas-ics">${ic('agenda')} Lembretes no calendário</button>` : ''}</span>
         <button class="bt bt--ouro" type="button" data-agendar="casamento">${ic('agenda')} Agendar a habilitação</button></div>
       <p class="mini">Orientação geral com base na lei. A equipe confere o caso de vocês antes da habilitação.</p>`;
@@ -826,7 +840,7 @@ const custas = (() => {
 /* ------------------------------------------------------------------ vistas (menu abre a seção, não rola a página)
    A página continua sendo uma só — o roteador apenas esconde as outras seções.
    Hash na URL: Voltar/Avançar do navegador funcionam e cada vista tem link próprio. */
-const VISTAS = ['servicos', 'casamento', 'certidoes', 'verificar', 'atendimento', 'enotariado', 'duvidas', 'contato', 'ouvidoria', 'glossario', 'empresas', 'estrangeiros'];
+const VISTAS = ['servicos', 'casamento', 'certidoes', 'verificar', 'atendimento', 'links', 'enotariado', 'duvidas', 'contato', 'ouvidoria', 'glossario', 'empresas', 'estrangeiros'];
 const ALIAS = { espaco: 'casamento', galeria: 'casamento', topo: 'inicio', conteudo: 'inicio', feriados: 'contato', avaliacao: 'contato', transparencia: 'contato' };
 const secoes = $$('main > section');
 function vistaDoHash() { const id = location.hash.slice(1); return VISTAS.includes(ALIAS[id] || id) ? (ALIAS[id] || id) : 'inicio'; }
@@ -899,6 +913,125 @@ $$('[data-idioma]').forEach((b) => b.addEventListener('click', () => {
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">${boa ? `<a class="bt bt--ouro" target="_blank" rel="noopener" href="https://g.co/kgs/fFvqKzj">${ic('estrela')} Avaliar no Google</a>` : `<a class="bt" href="#ouvidoria">Registrar na ouvidoria</a>`}
       <a class="bt bt--whats bt--p" target="_blank" rel="noopener" href="${wa(`Avaliação do atendimento: nota ${x.nota}/5${x.servico ? ` · ${x.servico}` : ''}${x.comentario ? `\n\n${x.comentario}` : ''}`)}">${ic('whatsapp')} Enviar comentário à equipe</a></div></div>`;
   });
+})();
+
+/* ------------------------------------------------------------------ links úteis */
+const LINKS = [
+  ['Formulário de habilitação (PDF)', 'Formulário do cartório para preencher à mão e levar com os documentos do casamento.', 'assets/docs/formulario-habilitacao-casamento.pdf'],
+  ['Portal Extrajudicial de Alagoas', 'Página do TJAL sobre os cartórios do estado: tabela de emolumentos, selos e consultas.', 'https://extrajudicial.tjal.jus.br/'],
+  ['Consulta do selo digital (TJAL)', 'Confere o ato a que pertence o selo impresso no documento.', 'https://seloapp.tjal.jus.br/publico/selo'],
+  ['Simulador de emolumentos (TJAL)', 'Calcula o valor de um ato pela tabela oficial vigente.', 'https://emolumentos.tjal.jus.br/'],
+  ['Registro Civil on-line (este cartório)', 'Pedido de certidões de nascimento, casamento e óbito registradas aqui.', 'https://www.registrocivil.net/2873?targetForm=T'],
+  ['Portal oficial do Registro Civil', '2ª via de certidões de qualquer cartório do país, busca de registros e validação de certidão digital.', 'https://www.registrocivil.org.br/'],
+  ['e-Proclamas', 'Editais de proclamas de casamento publicados pelos cartórios de registro civil.', 'https://proclamas.org.br/'],
+  ['e-Notariado', 'Plataforma oficial dos atos notariais eletrônicos e do certificado digital notarizado.', 'https://www.e-notariado.org.br/'],
+  ['CENSEC', 'Central notarial que informa se existe escritura de separação, divórcio ou inventário.', 'https://censec.org.br/'],
+  ['Busca Testamento', 'Certidão sobre a existência de testamento, exigida nos inventários.', 'https://buscatestamento.org.br/'],
+  ['Validação de apostila (CNJ)', 'Confere apostilas emitidas no sistema Apostil.', 'https://apostil.org.br/validation'],
+  ['Colégio Notarial do Brasil', 'Entidade nacional dos tabeliães de notas.', 'https://www.notariado.org.br/'],
+  ['Conselho Nacional de Justiça', 'Normas e políticas do Judiciário para os cartórios de todo o país.', 'https://www.cnj.jus.br/'],
+  ['Tribunal de Justiça de Alagoas', 'Portal do Poder Judiciário de Alagoas.', 'https://www.tjal.jus.br/'],
+  ['Receita Federal', 'Consulta e regularização do CPF, exigido na maior parte dos atos.', 'https://www.gov.br/receitafederal/pt-br'],
+];
+$('#lista-links').innerHTML = LINKS.map(([t, d, u]) => `<a class="card card--clic" href="${u}" target="_blank" rel="noopener"><h3>${esc(t)}</h3><p>${esc(d)}</p><span class="mini">${u.startsWith('http') ? new URL(u).hostname : 'PDF · 3 páginas'} ↗</span></a>`).join('');
+
+/* ------------------------------------------------------------------ certidão de ato notarial */
+(function certidaoNotas() {
+  const f = $('#form-cert-notas'), tipo = $('#cn-tipo');
+  tipo.addEventListener('change', () => { $('#cn-aviso').innerHTML = tipo.value === 'Testamento público' ? `<div class="aviso">${ic('alerta')}<p>Certidão de testamento tem sigilo: em vida, só ao próprio testador; depois do óbito, a quem comprove interesse (herdeiro, inventariante). Traga a certidão de óbito.</p></div>` : ''; });
+  f.addEventListener('submit', (e) => {
+    e.preventDefault(); if (!validar(f)) return;
+    const x = Object.fromEntries(new FormData(f)), prot = protocolo('CN');
+    const texto = `*Pedido de certidão notarial ${prot}*\n\nAto: ${x.tipo}${x.ano ? ` (${x.ano})` : ''}${x.livro ? `\nLivro/folha: ${x.livro}` : ''}\nPartes: ${x.partes}\nFinalidade: ${x.fim}\n\nSolicitante: ${x.nome}\nWhatsApp: ${x.tel}\n\nEnviado pelo site.`;
+    registrarPedido({ tipo: 'Certidão', prot, resumo: `${x.tipo} · ${x.partes}`, texto });
+    $('#cn-saida').innerHTML = `<div class="resumo"><p class="olho">${ic('check-circ')} Pedido ${prot} montado</p><p style="margin:0 0 .8rem">A equipe localiza o ato no livro, confirma o valor e avisa quando a certidão estiver pronta.</p>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="bt bt--whats" target="_blank" rel="noopener" href="${wa(texto)}">${ic('whatsapp')} Enviar à equipe</a><a class="bt bt--linha bt--p" href="#atendimento" data-aba="pedidos">Acompanhar</a></div></div>`;
+    toast(`Pedido ${prot} salvo em “Meus pedidos”`);
+  });
+})();
+
+/* ------------------------------------------------------------------ pré-cadastro (fica só no aparelho) */
+function cpfValido(s) {
+  const d = s.replace(/\D/g, ''); if (d.length !== 11 || /^(\d)\1+$/.test(d)) return false;
+  const dv = (n) => { let soma = 0; for (let i = 0; i < n; i++) soma += d[i] * (n + 1 - i); const r = (soma * 10) % 11; return (r === 10 ? 0 : r) === +d[n]; };
+  return dv(9) && dv(10);
+}
+(function preCadastro() {
+  const raiz = $('#pre-pessoas'), f = $('#form-pre'), saida = $('#pre-saida');
+  const EC = ['Solteiro(a)', 'Casado(a)', 'Divorciado(a)', 'Viúvo(a)', 'União estável'];
+  let pessoas = guarda.get('pre', [{}]);
+  const campo = (i, n, rot, extra = '') => `<div class="campo"><label for="pre-${i}-${n}">${rot}</label>${extra.startsWith('<') ? extra : `<input id="pre-${i}-${n}" name="${n}" value="${esc(pessoas[i][n] || '')}" ${extra}>`}</div>`;
+  function desenhar() {
+    raiz.innerHTML = pessoas.map((p, i) => `<fieldset class="painel pre-pessoa" data-i="${i}"><legend class="legenda">Pessoa ${i + 1} ${pessoas.length > 1 ? `<button class="bt bt--linha bt--p" type="button" data-pre-rm="${i}">remover</button>` : ''}</legend>
+      <div class="linha2">${campo(i, 'nome', 'Nome completo', 'required autocomplete="off"')}${campo(i, 'cpf', 'CPF', 'required inputmode="numeric" placeholder="000.000.000-00" maxlength="14"')}</div>
+      <div class="linha2">${campo(i, 'nasc', 'Data de nascimento', 'type="date"')}${campo(i, 'ec', 'Estado civil', `<select id="pre-${i}-ec" name="ec">${EC.map((e) => `<option ${p.ec === e ? 'selected' : ''}>${e}</option>`).join('')}</select>`)}</div>
+      <div class="linha2">${campo(i, 'prof', 'Profissão', '')}${campo(i, 'nac', 'Nacionalidade', '')}</div></fieldset>`).join('');
+    pessoas.forEach((p, i) => { if (!p.nac) $(`#pre-${i}-nac`).value = 'Brasileira'; });
+  }
+  const ler = () => { pessoas = $$('.pre-pessoa', raiz).map((fs) => Object.fromEntries($$('input, select', fs).map((c) => [c.name, c.value]))); guarda.set('pre', pessoas); };
+  raiz.addEventListener('input', (e) => { const c = e.target; if (c.name === 'cpf') { const d = c.value.replace(/\D/g, '').slice(0, 11); c.value = d.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2'); if (d.length === 11 && !cpfValido(d)) c.dataset.regra = '1'; else delete c.dataset.regra; } ler(); });
+  raiz.addEventListener('click', (e) => { const b = e.target.closest('[data-pre-rm]'); if (!b) return; ler(); pessoas.splice(+b.dataset.preRm, 1); guarda.set('pre', pessoas); desenhar(); });
+  $('#pre-mais').addEventListener('click', () => { if (pessoas.length >= 6) return toast('Até seis pessoas por pré-cadastro'); ler(); pessoas.push({}); guarda.set('pre', pessoas); desenhar(); $(`#pre-${pessoas.length - 1}-nome`).focus(); });
+  $('#pre-apagar').addEventListener('click', () => { if (!confirm('Apagar os dados do pré-cadastro deste aparelho?')) return; pessoas = [{}]; guarda.set('pre', pessoas); saida.innerHTML = ''; desenhar(); });
+  f.addEventListener('submit', (e) => {
+    e.preventDefault(); ler(); $$('[name="cpf"]', raiz).forEach((c) => { if (!cpfValido(c.value)) c.dataset.regra = '1'; }); if (!validar(f)) return toast('Confira os campos em vermelho — CPF inválido ou nome em branco');
+    saida.innerHTML = `<div class="resumo"><p class="olho">${ic('check-circ')} Resumo para levar ao cartório</p>
+      <div class="tabela"><table><thead><tr><th>Nome</th><th>CPF</th><th>Nascimento</th><th>Estado civil</th><th>Profissão</th><th>Nacionalidade</th></tr></thead><tbody>${pessoas.map((p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.cpf)}</td><td>${p.nasc ? dataBR(new Date(p.nasc + 'T12:00:00')) : '—'}</td><td>${esc(p.ec || '')}</td><td>${esc(p.prof || '—')}</td><td>${esc(p.nac || '')}</td></tr>`).join('')}</tbody></table></div>
+      <p class="mini">Gerado em ${new Date().toLocaleString('pt-BR')}. Leve com os documentos originais; o cartório confere e lança no ato.</p>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="bt bt--linha bt--p" type="button" onclick="print()">${ic('impressora')} Imprimir</button><button class="bt bt--p" type="button" id="pre-usar">${ic('agenda')} Usar no agendamento</button></div></div>`;
+    $('#pre-usar').addEventListener('click', () => { trocarAba('agendar'); $('#ag-nome').value = pessoas[0].nome; $('#ag-obs').value = `Pessoas do ato (pré-cadastro feito no site): ${pessoas.map((p) => p.nome).join('; ')}`; toast('Nome e pessoas do ato levados ao agendamento — sem os CPFs'); });
+  });
+  desenhar();
+})();
+
+/* ------------------------------------------------------------------ comparativo cartório × Justiça */
+(function comparativo() {
+  const tipo = $('#comp-tipo'), valor = $('#comp-valor'), saida = $('#comp-saida'), brl = (n) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const DADOS = {
+    divorcio: { req: ['Consenso sobre tudo: partilha, nome e alimentos entre os cônjuges. Com filhos menores ou incapazes, só nas hipóteses da Res. CNJ 571/2024, com manifestação do Ministério Público.', 'Qualquer situação; é o único caminho quando não há acordo.'], prazo: ['Pode sair no mesmo dia, com a documentação completa.', 'Meses, conforme a vara <mark>[a confirmar]</mark>.'], base: 'CPC, art. 733; Lei 11.441/2007; Res. CNJ 35/2007 e 571/2024.' },
+    inventario: { req: ['Todos os herdeiros de acordo e capazes; com testamento ou herdeiro incapaz, só nas hipóteses da Res. CNJ 571/2024, com o Ministério Público.', 'Qualquer situação; obrigatório quando há conflito entre herdeiros.'], prazo: ['Dias, depois das certidões e do ITCMD.', 'Meses a anos, conforme a vara <mark>[a confirmar]</mark>.'], base: 'CPC, art. 610; Lei 11.441/2007; Res. CNJ 35/2007 e 571/2024.' },
+  };
+  valor.addEventListener('input', () => { const n = valor.value.replace(/\D/g, '').slice(0, 13); valor.value = n ? brl(n / 100) : ''; });
+  function desenhar() {
+    const d = DADOS[tipo.value], v = +(valor.value.replace(/\D/g, '') || 0) / 100, linhas = ATOS_CUSTAS[tipo.value].linhas({ valor: v });
+    const emol = linhas ? linhas.reduce((s, l) => s + l[2], 0) : 0, total = emol * (1 + TABELA_AL.tsnr / 100);
+    saida.innerHTML = `<div class="tabela comp"><table><thead><tr><th></th><th>Em cartório</th><th>Na Justiça</th></tr></thead><tbody>
+      <tr><td>Quando cabe</td><td>${d.req[0]}</td><td>${d.req[1]}</td></tr>
+      <tr><td>Advogado</td><td>Obrigatório (assina a escritura)</td><td>Obrigatório</td></tr>
+      <tr><td>Prazo típico</td><td>${d.prazo[0]}</td><td>${d.prazo[1]}</td></tr>
+      <tr><td>Custas</td><td>${linhas ? `<b>${brl(total)}</b> (emolumentos + TSNR, sem ISS)` : 'Informe o valor dos bens'}</td><td>Custas judiciais do TJAL <mark>[a serventia informa]</mark></td></tr>
+      <tr><td>Onde</td><td>Qualquer tabelionato do país (Lei 8.935/1994, art. 8º)</td><td>Vara competente</td></tr></tbody></table></div>
+      <p class="mini">Nos dois caminhos: honorários do advogado, ITCMD ao estado (inventário) e registro dos bens à parte. ${d.base}</p>`;
+  }
+  tipo.addEventListener('change', desenhar); valor.addEventListener('input', desenhar); desenhar();
+})();
+
+/* ------------------------------------------------------------------ chat de atendimento (demonstração) */
+(function chat() {
+  const cx = $('#chat'), msgs = $('#chat-msgs'), bt = $('#bt-chat');
+  const bot = (html, chips) => { msgs.insertAdjacentHTML('beforeend', `<div class="msg">${html}${chips ? `<div class="chips">${chips.map(([t, a]) => `<button type="button" class="chip" data-chip="${esc(a)}">${esc(t)}</button>`).join('')}</div>` : ''}</div>`); msgs.scrollTop = msgs.scrollHeight; };
+  const eu = (t) => msgs.insertAdjacentHTML('beforeend', `<div class="msg msg--eu">${esc(t)}</div>`);
+  const MENU = [['Horário de hoje', 'horario'], ['Documentos de um serviço', 'docs'], ['Quanto custa', 'custas'], ['Agendar', 'agendar'], ['Falar com atendente', 'humano']];
+  const fechar = () => { cx.hidden = true; bt.setAttribute('aria-expanded', 'false'); };
+  function responder(a) {
+    if (a === 'horario') bot(`${estadoAgora()[1]}. Atendemos de segunda a sexta, 8h–12h e 14h–17h, na R. Eng. Roberto Gonçalves Menezes, 63 — Centro.`, MENU);
+    else if (a === 'docs') bot('De qual serviço?', SERVICOS.slice(0, 10).map((s) => [s.nome, 'serv:' + s.id]).concat([['Outro…', 'docs-mais']]));
+    else if (a === 'docs-mais') bot('Escreva o que precisa — por exemplo “procuração”, “casar” ou “herança” — que eu procuro.');
+    else if (a.startsWith('serv:')) { const s = POR_ID[a.slice(5)]; bot(`<b>${esc(s.nome)}</b><ul class="mini" style="padding-left:1.1rem;margin:.4rem 0">${s.docs.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>`, [['Ver o serviço completo', 'abrir:' + s.id], ['Agendar este ato', 'ag:' + s.id], ['Voltar ao início', 'menu']]); }
+    else if (a.startsWith('abrir:')) abrirServico(a.slice(6));
+    else if (a.startsWith('ag:')) { fechar(); location.hash = '#atendimento'; irPara('agendar', a.slice(3)); }
+    else if (a === 'custas') bot('Posso estimar pela tabela de Alagoas (Lei 9.778/2025), item a item.', [['Abrir a calculadora', 'ir-custas'], ['Voltar ao início', 'menu']]);
+    else if (a === 'ir-custas') { fechar(); location.hash = '#atendimento'; trocarAba('custas'); }
+    else if (a === 'agendar') { fechar(); location.hash = '#atendimento'; trocarAba('agendar'); }
+    else if (a === 'humano') bot(`Um atendente responde pelo WhatsApp no horário de expediente. <a class="bt bt--whats bt--p" target="_blank" rel="noopener" href="${wa('Olá! Vim do chat do site e preciso de atendimento.')}">Abrir o WhatsApp</a><p class="mini" style="margin:.5rem 0 0">No site definitivo, a conversa continua aqui mesmo, pela API oficial do WhatsApp Business, com histórico e horário de resposta.</p>`, [['Voltar ao início', 'menu']]);
+    else bot('Como posso ajudar?', MENU);
+  }
+  bt.addEventListener('click', () => { const abrir = cx.hidden; cx.hidden = !abrir; bt.setAttribute('aria-expanded', abrir); if (abrir && !msgs.children.length) bot('Olá! Sou o atendente virtual da 7ª Circunscrição. Em que posso ajudar?', MENU); if (abrir) $('#chat-txt').focus(); });
+  $('#chat-fechar').addEventListener('click', fechar);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fechar(); });
+  msgs.addEventListener('click', (e) => { const c = e.target.closest('[data-chip]'); if (!c) return; eu(c.textContent); responder(c.dataset.chip); });
+  $('#chat-form').addEventListener('submit', (e) => { e.preventDefault(); const t = $('#chat-txt').value.trim(); if (!t) return; eu(t); $('#chat-txt').value = '';
+    const r = buscar(t).slice(0, 4).map((x) => x.s || x); if (r.length && r[0].nome) bot('Encontrei:', r.map((s) => [s.nome, 'serv:' + s.id]).concat([['Voltar ao início', 'menu']])); else bot('Não entendi. Escolha uma opção:', MENU); });
 })();
 
 /* ------------------------------------------------------------------ e-Notariado, FAQ, apresentação */
