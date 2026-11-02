@@ -275,3 +275,25 @@ mark{background:var(--superficie-2);color:var(--ouro-texto);padding:0 .3rem;bord
 
 .g-cards{grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));align-items:start}
 .card .campo{margin:0}.card form,form.card{gap:.6rem}
+
+/* agenda visual */
+.agenda{max-width:520px}.agenda__cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem}.agenda__cab b{text-transform:capitalize}
+.agenda__dias{display:grid;grid-template-columns:repeat(7,1fr);gap:.3rem}.agenda__dias small{text-align:center;font-size:.72rem;color:var(--texto-3);padding:.2rem 0}
+.agenda__dia{aspect-ratio:1;border:1px solid var(--borda);border-radius:var(--raio-sm);background:var(--superficie);font:600 .9rem var(--f-texto);color:var(--texto);cursor:pointer;transition:background var(--t),transform var(--t)}
+.agenda__dia:hover:not(:disabled){background:var(--fundo-2);transform:translateY(-1px)}.agenda__dia:disabled{opacity:.35;cursor:default}
+.agenda__dia.hoje{outline:2px solid var(--ouro);outline-offset:-2px}.agenda__dia[aria-pressed="true"]{background:var(--navy-800);color:#fff;border-color:var(--navy-800)}
+.horas{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.8rem}.horas b{width:100%;font-size:.85rem;margin-top:.4rem}
+.hora{padding:.45rem .8rem;border:1px solid var(--borda);border-radius:var(--raio-full);background:var(--superficie);font:600 .85rem var(--f-texto);color:var(--texto);cursor:pointer}
+.hora:disabled{text-decoration:line-through;opacity:.4;cursor:default}.hora[aria-pressed="true"]{background:var(--ouro);border-color:var(--ouro);color:var(--navy-900)}
+/* trilha do casamento */
+.trilha{display:flex;flex-wrap:wrap;gap:.6rem 1.4rem;align-items:center;padding:1rem 1.25rem;border:1px solid var(--borda);border-left:4px solid var(--ouro);border-radius:var(--raio);background:var(--superficie)}
+.trilha b{display:block}.trilha .progresso{flex:1 1 160px;margin:0}.trilha .acoes{margin:0;padding:0;border:0}
+.trilha-etapas{display:grid;gap:.5rem;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:.9rem 0;padding:0;list-style:none;counter-reset:e}
+.trilha-etapas li{padding:.7rem .8rem;border-radius:var(--raio-sm);background:var(--fundo-2);font-size:.85rem;counter-increment:e}.trilha-etapas li::before{content:counter(e);display:inline-grid;place-items:center;width:1.4rem;height:1.4rem;margin-right:.4rem;border-radius:50%;background:var(--borda);font-weight:700;font-size:.75rem}
+.trilha-etapas li.feito::before{content:"✓";background:var(--sucesso);color:#fff}.trilha-etapas li.atual{outline:2px solid var(--ouro)}.trilha-etapas li span{display:block;color:var(--texto-2);font-size:.78rem}
+/* tour guiado */
+.tour{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);width:min(440px,calc(100% - 2rem));z-index:70;background:var(--superficie);color:var(--texto);border:1px solid var(--borda);border-top:4px solid var(--ouro);border-radius:var(--raio);box-shadow:var(--sombra-3);padding:1.1rem 1.25rem}
+.tour h3{margin:.2rem 0 .3rem}.tour p{margin:0;font-size:.92rem}.tour__acoes{display:flex;justify-content:space-between;gap:.5rem;margin-top:.9rem}
+.tour-alvo{outline:3px solid var(--ouro);outline-offset:5px;border-radius:6px;animation:tour-pulso 1.2s ease-in-out infinite}
+@keyframes tour-pulso{50%{outline-offset:10px;outline-color:var(--ouro-claro)}}
+@media(prefers-reduced-motion:reduce){.tour-alvo{animation:none}}

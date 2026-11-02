@@ -156,6 +156,9 @@ const MELHORIAS = [
   ['Transparência', 'Produtividade da serventia no Justiça Aberta (CNJ) e dados do selo digital (TJAL).', '#transparencia'],
   ['Verificar documento', 'Selo digital do TJAL, apostila da Haia, certidão digital e atos do e-Notariado — cada um na consulta oficial, com o código já copiado.', '#verificar'],
   ['Acompanhar pedido', 'Pelo protocolo, as etapas do agendamento, da certidão ou da ouvidoria. No site definitivo, a equipe atualiza o andamento.', '#atendimento'],
+  ['Agenda visual', 'Calendário com dias úteis, feriados bloqueados e horários livres/ocupados (ocupação simulada no protótipo).', '#atendimento'],
+  ['Trilha do casamento', 'Progresso persistente em 5 etapas: simulação, documentos, habilitação agendada, certificado, cerimônia — na home e na seção.', '#casamento'],
+  ['Tour guiado', 'Sete passos pelo protótipo, acionado no hero ou neste painel.', '#inicio'],
   ['Lembretes no calendário', 'Arquivo .ics do agendamento (com alarme 2 h antes) e das datas do casamento: entrada da habilitação e cerimônia.', '#casamento'],
 ];
 
@@ -363,7 +366,7 @@ function assistente(no, trilha) {
 }
 
 /* ------------------------------------------------------------------ simulador de casamento */
-(function simulador() {
+const simuladorCas = (function simulador() {
   const f = $('#form-casamento'), etapas = $$('.etapa', f), passos = $$('#passos-cas li');
   let atual = 0;
   const v = () => {
@@ -418,6 +421,7 @@ function assistente(no, trilha) {
 
   function resultado() {
     const x = v(), docs = documentos(x), hoje = new Date();
+    guarda.set('trilha', { ...guarda.get('trilha', {}), x, quando: new Date().toISOString() }); desenharTrilha();
     const pacto = x.regime !== 'parcial' || x.id.some((i) => i >= 70);
     let datas = '<li><b>Dê entrada quando tiver os documentos</b><span>O certificado sai em até 5 dias e vale por 90.</span></li>';
     let aperto = ''; const eventos = [];
@@ -451,7 +455,7 @@ function assistente(no, trilha) {
     $('#cas-ics')?.addEventListener('click', () => { baixarICS('casamento-lembretes.ics', eventos); toast('Lembretes salvos — abra o arquivo no seu calendário'); });
     ligarChecklist($('#resultado-cas'), 'casamento', ({ total, feitos, faltando }) => {
       $('#resultado-cas .progresso i').style.width = (100 * feitos / total) + '%';
-      $('#resultado-cas [data-prog]').textContent = `${feitos} de ${total} separados`;
+      $('#resultado-cas [data-prog]').textContent = `${feitos} de ${total} separados`; guarda.set('trilha', { ...guarda.get('trilha', {}), docs: [feitos, total] }); desenharTrilha();
       $('#cas-enviar').href = wa(`Olá! Simulei nosso casamento no site.\n• Cerimônia: ${LOC[x.local]}\n• Regime: ${ROT[x.regime]}${x.data ? `\n• Data desejada: ${dataBR(new Date(x.data + 'T12:00:00'))}` : ''}\n\nAinda reunindo:\n${faltando.map((d) => '• ' + d).join('\n') || '(tudo pronto)'}`);
     });
   }
@@ -472,6 +476,75 @@ function assistente(no, trilha) {
   });
   $('#cas-voltar').addEventListener('click', () => mostrar(Math.max(0, atual - 1)));
   f.addEventListener('input', (e) => { if (e.target.getAttribute('aria-invalid') === 'true') { e.target.setAttribute('aria-invalid', 'false'); e.target.nextElementSibling?.classList.contains('erro') && e.target.nextElementSibling.remove(); } });
+  // repõe no formulário o que foi simulado e abre direto no roteiro
+  function retomar(x) {
+    f.elements.ec1.value = x.ec[0]; f.elements.ec2.value = x.ec[1]; f.elements.id1.value = x.id[0]; f.elements.id2.value = x.id[1];
+    if (f.elements.estrangeiro) f.elements.estrangeiro.checked = x.estr; if (f.elements.partilhaFeita) f.elements.partilhaFeita.checked = x.partilha;
+    f.elements.local.value = x.local; f.elements.data.value = x.data || ''; f.elements.regime.value = x.regime;
+    revisarVoceSilencioso(); mostrar(3); f.scrollIntoView({ block: 'start' });
+  }
+  return { retomar, recomecar() { f.reset(); revisarVoceSilencioso(); mostrar(0); } };
+})();
+
+/* ------------------------------------------------------------------ trilha do casamento (progresso persistente) */
+function desenharTrilha() {
+  const t = guarda.get('trilha', null), alvo = $('#trilha-cas'), casa = $('#trilha-home');
+  if (!t) { alvo.hidden = casa.hidden = true; return; }
+  const [df, dt] = t.docs || [0, 0];
+  const agendado = guarda.get('pedidos', []).some((p) => p.tipo === 'Agendamento' && /^Casamento/.test(p.resumo));
+  const dia = t.x.data ? new Date(t.x.data + 'T12:00:00') : null, passou = dia && dia < new Date();
+  const etapas = [['Simulação feita', `${new Date(t.quando).toLocaleDateString('pt-BR')} · ${t.x.regime === 'parcial' ? 'comunhão parcial' : t.x.regime}`, true],
+    ['Documentos reunidos', dt ? `${df} de ${dt} separados` : 'marque no checklist do roteiro', dt > 0 && df === dt],
+    ['Habilitação agendada', agendado ? 'pedido em “Meus pedidos”' : 'agende a entrada dos documentos', agendado],
+    ['Certificado de habilitação', t.certificado ? 'recebido' : 'vale 90 dias (CC, art. 1.532)', !!t.certificado],
+    ['Cerimônia', dia ? dataBR(dia) : 'data a definir', !!passou]];
+  const feitos = etapas.filter((e) => e[2]).length, atual = etapas.findIndex((e) => !e[2]);
+  const pct = Math.round(100 * feitos / etapas.length);
+  casa.hidden = false; casa.innerHTML = `<div class="trilha"><span>${ic('aneis-p')}</span><span><b>Seu casamento: ${feitos} de ${etapas.length} etapas</b><small class="mini">Próxima: ${atual < 0 ? 'tudo feito — parabéns!' : etapas[atual][0].toLowerCase()}</small></span><div class="progresso"><i style="width:${pct}%"></i></div><a class="bt bt--p" href="#casamento">Continuar</a></div>`;
+  alvo.hidden = false; alvo.innerHTML = `<div class="painel" style="margin-bottom:1.2rem"><p class="olho">Sua trilha</p><div class="progresso"><i style="width:${pct}%"></i></div>
+    <ol class="trilha-etapas">${etapas.map((e, i) => `<li class="${e[2] ? 'feito' : i === atual ? 'atual' : ''}">${e[0]}<span>${esc(e[1])}</span></li>`).join('')}</ol>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="bt bt--p" type="button" data-trilha="retomar">Ver meu roteiro</button>
+      ${agendado ? '' : '<button class="bt bt--linha bt--p" type="button" data-agendar="casamento">Agendar a habilitação</button>'}
+      ${t.certificado ? '' : '<button class="bt bt--linha bt--p" type="button" data-trilha="certificado">Recebi o certificado</button>'}
+      <button class="bt bt--linha bt--p" type="button" data-trilha="recomecar">Recomeçar do zero</button></div></div>`;
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-trilha]'); if (!b) return;
+  const t = guarda.get('trilha', null); if (!t) return;
+  if (b.dataset.trilha === 'retomar') simuladorCas.retomar(t.x);
+  if (b.dataset.trilha === 'certificado') { guarda.set('trilha', { ...t, certificado: true }); desenharTrilha(); toast('Certificado anotado — agora é só marcar a data'); }
+  if (b.dataset.trilha === 'recomecar' && confirm('Apagar a simulação e o checklist salvos neste aparelho?')) { guarda.set('trilha', null); guarda.set('docs-casamento', []); simuladorCas.recomecar(); desenharTrilha(); }
+});
+desenharTrilha();
+
+/* ------------------------------------------------------------------ tour guiado */
+const TOUR = [
+  ['#busca-hero', 'inicio', null, 'Busca que entende o cidadão', 'Escreva “casa”, “herança” ou “morar junto”: a busca leva ao serviço certo, com os documentos.'],
+  ['#atalhos .atalho[href="#casamento"]', 'inicio', null, 'Simulador de casamento', 'Três perguntas e o casal recebe a lista exata de documentos, o regime de bens e as datas de entrada.'],
+  ['#ag-dias', 'atendimento', 'agendar', 'Agenda visual', 'Dias úteis clicáveis, feriados bloqueados e horários livres ou ocupados. O pedido gera protocolo e arquivo para o calendário.'],
+  ['#cu-ato', 'atendimento', 'custas', 'Custas na hora', 'Tabela da Lei 9.778/2025 item a item, com a TSNR, e link ao simulador oficial do TJAL.'],
+  ['#form-acomp', 'atendimento', 'pedidos', 'Acompanhar pedido', 'Pelo protocolo, o cidadão vê em que etapa está o pedido — sem cadastro e sem ligar para o cartório.'],
+  ['#verificar .card', 'verificar', null, 'Verificar documento', 'Selo digital, apostila, certidão digital e e-Notariado: cada um na consulta oficial, com o código já copiado.'],
+  ['#bt-apres', 'inicio', null, 'O que mudou', 'Este painel lista as 25 melhorias em relação ao site atual, cada uma com link para ver no protótipo.'],
+];
+(function tour() {
+  const caixa = $('#tour'); let i = -1, alvo = null;
+  const limpar = () => { alvo?.classList.remove('tour-alvo'); alvo = null; };
+  function ir(n) {
+    limpar(); if (n < 0 || n >= TOUR.length) { caixa.hidden = true; i = -1; return; }
+    i = n; const [sel, vista, aba, titulo, texto] = TOUR[n];
+    if (location.hash !== '#' + vista) location.hash = vista;
+    setTimeout(() => {
+      if (aba) trocarAba(aba); if (aba === 'agendar') { $$('#form-ag .etapa')[2].hidden = false; agendamento.etapa(2); }
+      alvo = $(sel); alvo?.classList.add('tour-alvo'); alvo?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      $('#tour-passo').textContent = `Passo ${n + 1} de ${TOUR.length}`; $('#tour-titulo').textContent = titulo; $('#tour-texto').textContent = texto;
+      $('#tour-ant').disabled = n === 0; $('#tour-prox').textContent = n === TOUR.length - 1 ? 'Concluir' : 'Próximo';
+      caixa.hidden = false; $('#tour-prox').focus({ preventScroll: true });
+    }, 60);
+  }
+  $$('[data-tour]').forEach((b) => b.addEventListener('click', () => { alternarApres(false); ir(0); }));
+  $('#tour-prox').addEventListener('click', () => ir(i + 1)); $('#tour-ant').addEventListener('click', () => ir(i - 1)); $('#tour-fechar').addEventListener('click', () => ir(-1));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && i >= 0) ir(-1); });
 })();
 
 /* ------------------------------------------------------------------ galeria */
@@ -555,8 +628,28 @@ const agendamento = (() => {
   const sel = $('#ag-servico'), data = $('#ag-data'); let atual = 0;
   sel.innerHTML = '<option value="">Escolha o serviço…</option>' + CATS.map((c) => `<optgroup label="${c}">${SERVICOS.filter((s) => s.cat === c).map((s) => `<option value="${s.id}">${esc(s.nome)}</option>`).join('')}</optgroup>`).join('');
   const horas = []; for (const [a, b] of [[8, 12], [14, 17]]) for (let h = a; h < b; h += .5) horas.push(`${String(Math.floor(h)).padStart(2, '0')}:${h % 1 ? '30' : '00'}`);
-  $('#ag-hora').innerHTML = horas.map((h) => `<option>${h}</option>`).join('');
-  data.min = iso(somaDias(new Date(), 1)); data.max = iso(somaDias(new Date(), 90));
+  const hora = $('#ag-hora'), min = iso(somaDias(new Date(), 1)), max = iso(somaDias(new Date(), 90));
+  // agenda visual: mês navegável, dias úteis clicáveis, grade de horários
+  // ponytail: ocupação simulada por hash determinístico (~30%); trocar por consulta à agenda real da serventia
+  const ocupado = (d, h) => parseInt(idDoc(d + h).slice(1), 36) % 10 < 3;
+  let mes = new Date(); mes.setDate(1);
+  function desenharAgenda() {
+    const hoje = iso(new Date()), y = mes.getFullYear(), m = mes.getMonth(), ini = new Date(y, m, 1).getDay(), dias = new Date(y, m + 1, 0).getDate();
+    $('#ag-mes').textContent = mes.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    const limite = new Date(max + 'T12:00:00'); $('#ag-mes-ant').disabled = mes <= new Date(new Date().getFullYear(), new Date().getMonth(), 1); $('#ag-mes-prox').disabled = new Date(y, m + 1, 1) > limite;
+    let html = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d) => `<small aria-hidden="true">${d}</small>`).join('') + '<i></i>'.repeat(ini);
+    for (let d = 1; d <= dias; d++) {
+      const k = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`, dow = new Date(y, m, d).getDay();
+      const bloq = k < min || k > max || dow === 0 || dow === 6 || FERIADOS[k];
+      html += `<button class="agenda__dia${k === hoje ? ' hoje' : ''}" type="button" data-dia="${k}" ${bloq ? 'disabled' : ''} aria-pressed="${k === data.value}" aria-label="${d} de ${mes.toLocaleDateString('pt-BR', { month: 'long' })}${FERIADOS[k] ? ' — feriado: ' + FERIADOS[k] : ''}">${d}</button>`;
+    }
+    $('#ag-dias').innerHTML = html;
+    $('#ag-horas').innerHTML = !data.value ? '' : `<div class="horas"><b>${dataBR(new Date(data.value + 'T12:00:00'))}</b>${horas.map((h, i) => `${i === 8 ? '<b>Tarde</b>' : i === 0 ? '<b>Manhã</b>' : ''}<button class="hora" type="button" data-hora="${h}" ${ocupado(data.value, h) ? 'disabled aria-label="' + h + ' ocupado"' : ''} aria-pressed="${h === hora.value}">${h}</button>`).join('')}</div>`;
+  }
+  $('#ag-mes-ant').addEventListener('click', () => { mes.setMonth(mes.getMonth() - 1); desenharAgenda(); });
+  $('#ag-mes-prox').addEventListener('click', () => { mes.setMonth(mes.getMonth() + 1); desenharAgenda(); });
+  $('#ag-dias').addEventListener('click', (e) => { const b = e.target.closest('[data-dia]'); if (!b) return; data.value = b.dataset.dia; hora.value = ''; $('#ag-erro-hora').hidden = true; desenharAgenda(); });
+  $('#ag-horas').addEventListener('click', (e) => { const b = e.target.closest('[data-hora]'); if (!b) return; hora.value = b.dataset.hora; $('#ag-erro-hora').hidden = true; $$('[data-hora]').forEach((x) => x.setAttribute('aria-pressed', x === b)); });
 
   function formas() {
     const s = POR_ID[sel.value];
@@ -582,6 +675,7 @@ const agendamento = (() => {
       if (c.type === 'radio') { if (grupos.has(c.name)) return; grupos.add(c.name); if (!f.querySelector(`input[name="${c.name}"]:checked`)) ok = false; return; }
       const bom = c.checkValidity() && !c.dataset.regra; c.setAttribute('aria-invalid', !bom); if (!bom) ok = false;
     });
+    if (i === 2 && !(data.value && hora.value)) { ok = false; $('#ag-erro-hora').hidden = false; }
     if (!ok) $('[aria-invalid="true"]', etapas[i])?.focus();
     return ok;
   }
@@ -589,6 +683,7 @@ const agendamento = (() => {
     atual = i; etapas.forEach((e, k) => { e.hidden = k !== i; });
     passos.forEach((p, k) => { p.className = k < i ? 'feito' : k === i ? 'atual' : ''; });
     $('#ag-voltar').hidden = i === 0; $('#ag-seguir').hidden = i === 3; $('#ag-enviar').hidden = i !== 3;
+    if (i === 2) desenharAgenda();
   }
   $('#ag-seguir').addEventListener('click', () => { if (validarEtapa(atual)) mostrar(atual + 1); });
   $('#ag-voltar').addEventListener('click', () => mostrar(atual - 1));
@@ -600,6 +695,7 @@ const agendamento = (() => {
     const quando = `${dataBR(new Date(x.data + 'T12:00:00'))}, às ${x.hora}`;
     const texto = `*Pedido de agendamento ${prot}*\n\nServiço: ${s.nome}\nForma: ${x.forma}\nPreferência: ${quando}\n\nNome: ${x.nome}\nWhatsApp: ${x.tel}\nE-mail: ${x.email}${x.obs ? `\n\nObservação: ${x.obs}` : ''}\n\nEnviado pelo site.`;
     registrarPedido({ tipo: 'Agendamento', prot, resumo: `${s.nome} · ${quando}`, texto });
+    if (s.id === 'casamento') desenharTrilha();
     f.hidden = true; passos.forEach((p) => { p.className = 'feito'; });
     const r = $('#ag-recibo'); r.hidden = false;
     r.innerHTML = `<div class="resumo"><p class="olho">${ic('check-circ')} Pedido registrado</p><h3 style="font-size:1.6rem">Protocolo ${prot}</h3>
@@ -620,7 +716,7 @@ const agendamento = (() => {
     toast(`Agendamento ${prot} salvo em “Meus pedidos”`);
   });
   mostrar(0);
-  return { comecar(servico) { $('#ag-recibo').hidden = true; f.hidden = false; sel.value = servico; formas(); mostrar(0); setTimeout(() => $('#ag-seguir').focus({ preventScroll: true }), 400); } };
+  return { etapa: mostrar, comecar(servico) { $('#ag-recibo').hidden = true; f.hidden = false; sel.value = servico; formas(); mostrar(0); setTimeout(() => $('#ag-seguir').focus({ preventScroll: true }), 400); } };
 })();
 
 /* ------------------------------------------------------------------ custas — Lei estadual nº 9.778/2025 (AL)
