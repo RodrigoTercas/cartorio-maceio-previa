@@ -535,7 +535,6 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
 
 <div class="dock">
   <button class="ap" type="button" id="bt-apres" aria-controls="apres" aria-expanded="false"><svg aria-hidden="true"><use href="#i-raio"/></svg> O que mudou</button>
-  <button class="c" type="button" id="bt-chat" aria-controls="chat" aria-expanded="false" aria-label="Abrir o chat de atendimento"><svg aria-hidden="true"><use href="#i-usuario"/></svg></button>
   <a class="w" href="#" data-whats="Olá! Preciso de atendimento." aria-label="Falar no WhatsApp"><svg class="cheio" aria-hidden="true"><use href="#i-whatsapp"/></svg></a>
 </div>
 
@@ -545,11 +544,6 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
   <p style="margin:0 0 1rem"><button class="bt bt--ouro bt--p" type="button" data-tour>Fazer o tour guiado (7 passos)</button></p>
   <ol id="lista-apres"></ol>
 </aside>
-<div class="chat" id="chat" role="dialog" aria-label="Chat de atendimento (demonstração)" hidden>
-  <div class="chat__cab"><span><b>Atendente virtual</b><small>Demonstração · respostas pré-programadas</small></span><button class="fechar" type="button" id="chat-fechar" aria-label="Fechar"><svg aria-hidden="true"><use href="#i-fechar"/></svg></button></div>
-  <div class="chat__msgs" id="chat-msgs" aria-live="polite"></div>
-  <form class="chat__form" id="chat-form"><label class="so-leitor" for="chat-txt">Mensagem</label><input id="chat-txt" autocomplete="off" placeholder="Escreva ou escolha uma opção…"><button class="bt bt--p" type="submit">Enviar</button></form>
-</div>
 <div class="tour" id="tour" role="dialog" aria-labelledby="tour-titulo" hidden>
   <p class="olho" id="tour-passo"></p><h3 id="tour-titulo"></h3><p id="tour-texto"></p>
   <div class="tour__acoes"><button class="bt bt--linha bt--p" type="button" id="tour-fechar">Sair</button><span><button class="bt bt--linha bt--p" type="button" id="tour-ant">Anterior</button> <button class="bt bt--p" type="button" id="tour-prox">Próximo</button></span></div>

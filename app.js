@@ -164,7 +164,6 @@ const MELHORIAS = [
   ['Pré-cadastro', 'Dados das pessoas do ato, com CPF validado, guardados só no aparelho; gera o resumo impresso e preenche o agendamento.', '#atendimento'],
   ['Religioso com efeito civil e diligência', 'Prazo de 90 dias para registrar o termo religioso (CC, art. 1.516) e o acréscimo da tabela para cerimônia fora do cartório.', '#casamento'],
   ['Cartório × Justiça', 'Divórcio e inventário lado a lado: requisitos, advogado, prazo e custas calculadas.', '#atendimento'],
-  ['Chat de atendimento', 'Atendente virtual com respostas pré-programadas (horário, documentos, custas, agendar) e passagem ao WhatsApp. Demonstração da API oficial.', '#inicio'],
   ['Lembretes no calendário', 'Arquivo .ics do agendamento (com alarme 2 h antes) e das datas do casamento: entrada da habilitação e cerimônia.', '#casamento'],
 ];
 
@@ -1004,34 +1003,6 @@ function cpfValido(s) {
       <p class="mini">Nos dois caminhos: honorários do advogado, ITCMD ao estado (inventário) e registro dos bens à parte. ${d.base}</p>`;
   }
   tipo.addEventListener('change', desenhar); valor.addEventListener('input', desenhar); desenhar();
-})();
-
-/* ------------------------------------------------------------------ chat de atendimento (demonstração) */
-(function chat() {
-  const cx = $('#chat'), msgs = $('#chat-msgs'), bt = $('#bt-chat');
-  const bot = (html, chips) => { msgs.insertAdjacentHTML('beforeend', `<div class="msg">${html}${chips ? `<div class="chips">${chips.map(([t, a]) => `<button type="button" class="chip" data-chip="${esc(a)}">${esc(t)}</button>`).join('')}</div>` : ''}</div>`); msgs.scrollTop = msgs.scrollHeight; };
-  const eu = (t) => msgs.insertAdjacentHTML('beforeend', `<div class="msg msg--eu">${esc(t)}</div>`);
-  const MENU = [['Horário de hoje', 'horario'], ['Documentos de um serviço', 'docs'], ['Quanto custa', 'custas'], ['Agendar', 'agendar'], ['Falar com atendente', 'humano']];
-  const fechar = () => { cx.hidden = true; bt.setAttribute('aria-expanded', 'false'); };
-  function responder(a) {
-    if (a === 'horario') bot(`${estadoAgora()[1]}. Atendemos de segunda a sexta, 8h–12h e 14h–17h, na R. Eng. Roberto Gonçalves Menezes, 63 — Centro.`, MENU);
-    else if (a === 'docs') bot('De qual serviço?', SERVICOS.slice(0, 10).map((s) => [s.nome, 'serv:' + s.id]).concat([['Outro…', 'docs-mais']]));
-    else if (a === 'docs-mais') bot('Escreva o que precisa — por exemplo “procuração”, “casar” ou “herança” — que eu procuro.');
-    else if (a.startsWith('serv:')) { const s = POR_ID[a.slice(5)]; bot(`<b>${esc(s.nome)}</b><ul class="mini" style="padding-left:1.1rem;margin:.4rem 0">${s.docs.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>`, [['Ver o serviço completo', 'abrir:' + s.id], ['Agendar este ato', 'ag:' + s.id], ['Voltar ao início', 'menu']]); }
-    else if (a.startsWith('abrir:')) abrirServico(a.slice(6));
-    else if (a.startsWith('ag:')) { fechar(); location.hash = '#atendimento'; irPara('agendar', a.slice(3)); }
-    else if (a === 'custas') bot('Posso estimar pela tabela de Alagoas (Lei 9.778/2025), item a item.', [['Abrir a calculadora', 'ir-custas'], ['Voltar ao início', 'menu']]);
-    else if (a === 'ir-custas') { fechar(); location.hash = '#atendimento'; trocarAba('custas'); }
-    else if (a === 'agendar') { fechar(); location.hash = '#atendimento'; trocarAba('agendar'); }
-    else if (a === 'humano') bot(`Um atendente responde pelo WhatsApp no horário de expediente. <a class="bt bt--whats bt--p" target="_blank" rel="noopener" href="${wa('Olá! Vim do chat do site e preciso de atendimento.')}">Abrir o WhatsApp</a><p class="mini" style="margin:.5rem 0 0">No site definitivo, a conversa continua aqui mesmo, pela API oficial do WhatsApp Business, com histórico e horário de resposta.</p>`, [['Voltar ao início', 'menu']]);
-    else bot('Como posso ajudar?', MENU);
-  }
-  bt.addEventListener('click', () => { const abrir = cx.hidden; cx.hidden = !abrir; bt.setAttribute('aria-expanded', abrir); if (abrir && !msgs.children.length) bot('Olá! Sou o atendente virtual da 7ª Circunscrição. Em que posso ajudar?', MENU); if (abrir) $('#chat-txt').focus(); });
-  $('#chat-fechar').addEventListener('click', fechar);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fechar(); });
-  msgs.addEventListener('click', (e) => { const c = e.target.closest('[data-chip]'); if (!c) return; eu(c.textContent); responder(c.dataset.chip); });
-  $('#chat-form').addEventListener('submit', (e) => { e.preventDefault(); const t = $('#chat-txt').value.trim(); if (!t) return; eu(t); $('#chat-txt').value = '';
-    const r = buscar(t).slice(0, 4).map((x) => x.s || x); if (r.length && r[0].nome) bot('Encontrei:', r.map((s) => [s.nome, 'serv:' + s.id]).concat([['Voltar ao início', 'menu']])); else bot('Não entendi. Escolha uma opção:', MENU); });
 })();
 
 /* ------------------------------------------------------------------ e-Notariado, FAQ, apresentação */
