@@ -138,7 +138,7 @@ const MELHORIAS = [
   ['Checklist que salva o progresso', 'Marca o que já separou e envia pelo WhatsApp só o que falta. Hoje: lista estática + “envie cópias para o Gmail”.', '#servicos'],
   ['Agendamento em 4 etapas com protocolo', 'Forma de atendimento conforme o ato, bloqueio de fim de semana e feriados, recibo por WhatsApp, e-mail ou impressão.', '#atendimento'],
   ['2ª via de certidão guiada', 'Monta o pedido e direciona ao Registro Civil on-line ou à equipe.', '#certidoes'],
-  ['Calculadora de custas', 'Emolumentos da Lei estadual 9.778/2025 + TSNR, item a item, para 17 atos. Hoje: nada.', '#atendimento'],
+  ['Calculadora de custas', 'Emolumentos da Lei estadual 9.778/2025 + TSNR, item a item, para 17 atos; link ao simulador oficial do TJAL e regras de formação do valor. Hoje: nada.', '#atendimento'],
   ['“Meus pedidos”', 'O cidadão revê e reenvia o que pediu, sem cadastro.', '#atendimento'],
   ['Horário ao vivo', '“Aberto agora · fecha às 12h” no topo, no hero e no contato.', '#contato'],
   ['Nome unificado', '“7ª Circunscrição — Casamento e Notas”. Hoje o site usa três nomes e escreve “7º”.', '#inicio'],
@@ -697,8 +697,9 @@ const custas = (() => {
       <div class="tabela"><table><thead><tr><th>Componente</th><th>Item</th><th class="num">Valor</th></tr></thead><tbody>
         ${linhas.map((l) => `<tr><td>${esc(l[0])}</td><td class="item">${l[1]}</td><td class="num">${brl(l[2])}</td></tr>`).join('')}
         <tr><td>TSNR — taxa de fiscalização (${TABELA_AL.tsnr}%)</td><td class="item">art. 24</td><td class="num">${brl(taxa)}</td></tr>
-        <tr class="total"><td colspan="2">Total estimado</td><td class="num">${brl(total)}</td></tr></tbody></table></div>
-      <p class="mini">Não inclui ISS, ITBI/ITCMD, registro de imóveis nem certidões de outros órgãos. O valor é conferido pelo cartório antes do ato.</p>
+        <tr><td>ISS municipal sobre o emolumento</td><td class="item">Maceió</td><td class="num"><mark>[a serventia informa]</mark></td></tr>
+        <tr class="total"><td colspan="2">Total estimado (sem ISS)</td><td class="num">${brl(total)}</td></tr></tbody></table></div>
+      <p class="mini">Confira no <a href="https://emolumentos.tjal.jus.br/" target="_blank" rel="noopener">simulador oficial do TJAL</a>. Não inclui ITBI/ITCMD, registro de imóveis nem certidões de outros órgãos. O valor é conferido pelo cartório antes do ato.</p>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="bt bt--p" type="button" data-agendar="${sel.value in POR_ID ? sel.value : 'escritura'}">${ic('agenda')} Agendar este ato</button>
         <a class="bt bt--whats bt--p" target="_blank" rel="noopener" href="${wa(`Olá! Simulei no site: ${a.nome} — estimativa de ${brl(total)}. Podem confirmar o valor?`)}">${ic('whatsapp')} Confirmar com a equipe</a></div></div>`;
   }
