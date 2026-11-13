@@ -338,3 +338,4 @@ mark{background:var(--superficie-2);color:var(--ouro-texto);padding:0 .3rem;bord
 #hab summary{cursor:pointer}#hab[open] summary{margin-bottom:.4rem}
 .hab-bloco{border:1px solid var(--borda);border-radius:var(--raio-sm);padding:1rem 1rem .2rem;margin:0 0 1rem;min-width:0}
 .linha3{display:grid;gap:0 1rem}@media(min-width:620px){.linha3{grid-template-columns:repeat(3,1fr)}}
+.campo input.lido{box-shadow:inset 0 0 0 2px var(--ouro);border-color:var(--ouro)}

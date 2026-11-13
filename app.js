@@ -220,6 +220,7 @@ const MELHORIAS = [
   ['Tema automático e animações', 'Segue o tema claro/escuro do sistema; blocos surgem ao rolar, respeitando “reduzir movimento”.', '#inicio'],
   ['Movimento e efeitos', 'Transição entre telas, busca que “digita” exemplos, cartões que inclinam com o mouse, ondulação nos botões, confete no protocolo e barra de leitura.', '#inicio'],
   ['Formulário de habilitação on-line', 'Os mesmos campos do formulário do balcão, preenchidos no site (CEP e pré-cadastro ajudam); o PDF de duas páginas é montado no próprio aparelho, sem enviar nada.', '#hab'],
+  ['Leitura de documento por foto', 'No formulário de habilitação e no pré-cadastro, a foto do RG ou da CNH preenche nome, CPF, nascimento e filiação. O reconhecimento roda no aparelho: a imagem não é enviada nem guardada.', '#hab'],
   ['Lembretes no calendário', 'Arquivo .ics do agendamento (com alarme 2 h antes) e das datas do casamento: entrada da habilitação e cerimônia.', '#casamento'],
 ];
 
@@ -1094,6 +1095,7 @@ $('#form-pergunta').addEventListener('submit', (e) => {
   const genitor = (p, k, rot) => `<div class="linha2">${c(`${p}_${k}`, `Nome ${rot}`)}${s(`${p}_${k}_sit`, 'Situação', ['Vivo(a)', 'Falecido(a)'])}</div>
     <div class="linha3">${c(`${p}_${k}_data`, 'Nascimento (ou falecimento)', 'placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10"')}${c(`${p}_${k}_cid`, 'Cidade')}${c(`${p}_${k}_uf`, 'UF', 'maxlength="2"')}</div>`;
   const pessoa = (p, n) => `<fieldset class="hab-bloco"><legend class="legenda">Interessado(a) ${n}</legend>
+    <p class="mini" style="margin:0 0 .8rem"><button class="bt bt--linha bt--p" type="button" data-ocr="${p}">${ic('upload')} Ler de uma foto do RG ou da CNH</button> <span data-ocr-st="${p}" aria-live="polite"></span></p>
     <div class="linha2">${c(p + '_nome', 'Nome completo', 'required autocomplete="off"')}${c(p + '_cpf', 'CPF', CPF)}</div>
     <div class="linha3">${s(p + '_ec', 'Estado civil', EC)}${c(p + '_nac', 'Nacionalidade')}${c(p + '_prof', 'Profissão')}</div>
     <div class="linha3">${c(p + '_fone', 'Telefone', 'type="tel" inputmode="tel"')}${c(p + '_cep', 'CEP', 'inputmode="numeric" maxlength="9" placeholder="57000-000"')}${c(p + '_bairro', 'Bairro')}</div>
@@ -1101,6 +1103,7 @@ $('#form-pergunta').addEventListener('submit', (e) => {
     <div class="linha2">${c(p + '_cidade', 'Cidade')}${c(p + '_uf', 'UF', 'maxlength="2"')}</div>
     ${genitor(p, 'pai', 'do pai')}${genitor(p, 'mae', 'da mãe')}</fieldset>`;
   const testemunha = (p, n) => `<fieldset class="hab-bloco"><legend class="legenda">Testemunha ${n} <span class="dica">(pode ficar para o balcão)</span></legend>
+    <p class="mini" style="margin:0 0 .8rem"><button class="bt bt--linha bt--p" type="button" data-ocr="${p}">${ic('upload')} Ler de uma foto do RG ou da CNH</button> <span data-ocr-st="${p}" aria-live="polite"></span></p>
     <div class="linha2">${c(p + '_nome', 'Nome completo')}${c(p + '_cpf', 'CPF', CPF)}</div>
     <div class="linha3">${c(p + '_nat', 'Natural de')}${s(p + '_ec', 'Estado civil', EC.concat('Casado(a)'))}${c(p + '_prof', 'Profissão')}</div>
     <div class="linha2">${c(p + '_fone', 'Telefone', 'type="tel" inputmode="tel"')}${c(p + '_end', 'Endereço completo')}</div></fieldset>`;
@@ -1118,7 +1121,7 @@ $('#form-pergunta').addEventListener('submit', (e) => {
   addEventListener('hashchange', abrirPeloHash); abrirPeloHash();
 
   f.addEventListener('input', async (e) => {
-    const el = e.target, n = el.name || '', d = el.value.replace(/\D/g, '');
+    const el = e.target, n = el.name || '', d = el.value.replace(/\D/g, ''); el.classList.remove('lido');
     if (n.endsWith('_cpf')) { el.value = d.slice(0, 11).replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2'); if (d.length >= 11 && !cpfValido(d)) el.dataset.regra = '1'; else delete el.dataset.regra; el.setAttribute('aria-invalid', !!el.dataset.regra); }
     if (n.endsWith('_data')) el.value = d.slice(0, 8).replace(/(\d{2})(\d)/, '$1/$2').replace(/(\d{2})(\d)/, '$1/$2');
     if (n.endsWith('_uf')) el.value = el.value.toUpperCase().replace(/[^A-Z]/g, '');
@@ -1131,6 +1134,19 @@ $('#form-pergunta').addEventListener('submit', (e) => {
     } catch (_) { toast('Sem conexão com o ViaCEP'); }
   });
   f.addEventListener('change', salvar);
+  // leitura por foto do RG ou da CNH (ver lerFoto): preenche e destaca os campos para conferência
+  const foto = $('#hab-foto'), ROTLIDO = { nome: 'nome', cpf: 'CPF', pai: 'pai', mae: 'mãe', nat: 'naturalidade' }; let alvoOCR = '';
+  f.addEventListener('click', (e) => { const b = e.target.closest('[data-ocr]'); if (!b) return; alvoOCR = b.dataset.ocr; foto.value = ''; foto.click(); });
+  foto.addEventListener('change', async () => {
+    const arq = foto.files[0], p = alvoOCR, st = $(`[data-ocr-st="${p}"]`); if (!arq) return;
+    try {
+      const r = await lerFoto(arq, (t) => { st.textContent = t; }), lidos = (p[0] === 't' ? ['nome', 'cpf', 'nat'] : ['nome', 'cpf', 'pai', 'mae']).filter((k) => r[k]);
+      lidos.forEach((k) => { const el = f.elements[`${p}_${k}`]; el.value = r[k]; el.classList.add('lido'); });
+      salvar();
+      st.textContent = lidos.length ? `Lido: ${lidos.map((k) => ROTLIDO[k]).join(', ')}. Confira os campos destacados — a leitura automática erra.` : SEM_LEITURA;
+    } catch (_) { st.textContent = ERRO_LEITURA; }
+  });
+
   $('#hab-pre').addEventListener('click', () => {
     const ps = guarda.get('pre', []).filter((p) => p.nome); if (!ps.length) return toast('Pré-cadastro vazio — ele fica na aba “Pré-cadastro” do Atendimento');
     ps.slice(0, 2).forEach((p, i) => { const [cid, uf] = (p.cidade || '').split('/');
@@ -1245,6 +1261,45 @@ $('#lista-links').innerHTML = LINKS.map(([t, d, u]) => `<a class="card card--cli
 })();
 
 /* ------------------------------------------------------------------ pré-cadastro (fica só no aparelho) */
+// Reconhecimento de texto no próprio aparelho (Tesseract.js, baixado só quando a pessoa pede): a foto não é enviada nem guardada.
+// `aviso` recebe o andamento; devolve o que lerDocumento() extraiu.
+async function lerFoto(arq, aviso) {
+  aviso('Preparando o leitor (na primeira vez demora um pouco)…');
+  if (!window.Tesseract) await new Promise((ok, erro) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; sc.onload = ok; sc.onerror = erro; document.head.appendChild(sc); });
+  // fotos de celular são grandes: reduzir para 2000 px no lado maior acelera a leitura sem perder o texto
+  const img = await createImageBitmap(arq), k = Math.min(1, 2000 / Math.max(img.width, img.height)); let fonte = arq;
+  if (k < 1) { fonte = Object.assign(document.createElement('canvas'), { width: Math.round(img.width * k), height: Math.round(img.height * k) }); fonte.getContext('2d').drawImage(img, 0, 0, fonte.width, fonte.height); }
+  const worker = await Tesseract.createWorker('por', 1, { logger: (m) => { if (m.status === 'recognizing text') aviso(`Lendo o documento… ${Math.round(m.progress * 100)}%`); } });
+  const { data } = await worker.recognize(fonte); await worker.terminate();
+  return lerDocumento(data.text);
+}
+const SEM_LEITURA = 'Não consegui ler os dados. Tente uma foto nítida, de frente e sem reflexo, ou preencha à mão.', ERRO_LEITURA = 'Não foi possível ler esta imagem (sem internet ou formato não aceito). Preencha à mão.';
+// Extrai nome, CPF, nascimento, filiação e naturalidade do texto reconhecido de um RG ou de uma CNH.
+// É heurístico (rótulos e posição das linhas): o resultado vai para o formulário destacado, para a pessoa conferir.
+function lerDocumento(texto) {
+  const ROTULO = /NOME|FILIA|IDENTIDADE|EMISSOR|NASCIMENTO|VALIDADE|HABILITA|REP[UÚ]BLICA|REGISTRO|NATURALIDADE|CPF|DATA|ASSINATURA|CARTEIRA|MINIST|DEPARTAMENTO|SECRETARIA|NACIONAL|V[AÁ]LID/i;
+  const linhas = texto.split(/\n/).map((l) => l.trim()).filter(Boolean), r = {};
+  // uma linha vale como nome se, tirado o ruído, sobram ao menos duas palavras de letras e ela não é um rótulo do documento
+  const nomeDe = (l) => { const n = (l || '').replace(/[^A-Za-zÀ-ÿ' ]/g, ' ').replace(/\s+/g, ' ').trim(); return /^(\S{2,} )+\S{2,}$/.test(n) && !ROTULO.test(n) ? n : ''; };
+  const iNome = linhas.findIndex((l) => /\bNOME\b/i.test(l) && !/SOCIAL|FILIA/i.test(l));
+  if (iNome >= 0) { const n = nomeDe(linhas[iNome].replace(/^.*?\bNOME( E SOBRENOME)?\b[:\s]*/i, '')) || nomeDe(linhas[iNome + 1]) || nomeDe(linhas[iNome + 2]); if (n) r.nome = n; }
+  const iFil = linhas.findIndex((l) => /FILIA[ÇC][ÃA]O/i.test(l));
+  if (iFil >= 0) {
+    const nomes = [nomeDe(linhas[iFil].replace(/^.*?FILIA[ÇC][ÃA]O[:\s]*/i, ''))].filter(Boolean);
+    for (const l of linhas.slice(iFil + 1, iFil + 6)) { const n = nomeDe(l); if (n) nomes.push(n); else if (nomes.length || ROTULO.test(l)) break; if (nomes.length === 2) break; }
+    if (nomes.length === 1) r.mae = nomes[0];           // um só nome na filiação costuma ser o da mãe
+    else if (nomes.length) { r.pai = nomes[0]; r.mae = nomes[1]; }
+  }
+  const cpf = (texto.match(/\d{3}[.\s]?\d{3}[.\s]?\d{3}[-–.\s]?\d{2}/g) || []).map((x) => x.replace(/\D/g, '')).find(cpfValido);
+  if (cpf) r.cpf = cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  const datas = (t) => [...(t || '').matchAll(/\b(\d{2})[\/.-](\d{2})[\/.-](\d{4})\b/g)].map((m) => `${m[3]}-${m[2]}-${m[1]}`).filter((d) => !isNaN(Date.parse(d)) && d > '1900' && d < new Date().toISOString());
+  const iNasc = linhas.findIndex((l) => /NASCIMENTO/i.test(l));
+  const nasc = (iNasc >= 0 && (datas(linhas[iNasc])[0] || datas(linhas[iNasc + 1])[0])) || datas(texto).sort()[0];
+  if (nasc) r.nasc = nasc;
+  const iNat = linhas.findIndex((l) => /NATURALIDADE/i.test(l));
+  if (iNat >= 0) { const limpa = (l) => (l || '').replace(/[^A-Za-zÀ-ÿ' \/-]/g, ' ').replace(/\s+/g, ' ').trim(); const n = limpa(linhas[iNat].replace(/^.*?NATURALIDADE[:\s]*/i, '')) || limpa(linhas[iNat + 1]); if (n.length > 2 && !ROTULO.test(n)) r.nat = n; }
+  return r;
+}
 function cpfValido(s) {
   const d = s.replace(/\D/g, ''); if (d.length !== 11 || /^(\d)\1+$/.test(d)) return false;
   const dv = (n) => { let soma = 0; for (let i = 0; i < n; i++) soma += d[i] * (n + 1 - i); const r = (soma * 10) % 11; return (r === 10 ? 0 : r) === +d[n]; };
@@ -1257,6 +1312,7 @@ function cpfValido(s) {
   const campo = (i, n, rot, extra = '') => `<div class="campo"><label for="pre-${i}-${n}">${rot}</label>${extra.startsWith('<') ? extra : `<input id="pre-${i}-${n}" name="${n}" value="${esc(pessoas[i][n] || '')}" ${extra}>`}</div>`;
   function desenhar() {
     raiz.innerHTML = pessoas.map((p, i) => `<fieldset class="painel pre-pessoa" data-i="${i}"><legend class="legenda">Pessoa ${i + 1} ${pessoas.length > 1 ? `<button class="bt bt--linha bt--p" type="button" data-pre-rm="${i}">remover</button>` : ''}</legend>
+      <p class="mini" style="margin:0 0 .8rem"><button class="bt bt--linha bt--p" type="button" data-pre-ocr="${i}">${ic('upload')} Ler de uma foto do RG ou da CNH</button> <span data-pre-st="${i}" aria-live="polite"></span></p>
       <div class="linha2">${campo(i, 'nome', 'Nome completo', 'required autocomplete="off"')}${campo(i, 'cpf', 'CPF', 'required inputmode="numeric" placeholder="000.000.000-00" maxlength="14"')}</div>
       <div class="linha2">${campo(i, 'nasc', 'Data de nascimento', 'type="date"')}${campo(i, 'ec', 'Estado civil', `<select id="pre-${i}-ec" name="ec">${EC.map((e) => `<option ${p.ec === e ? 'selected' : ''}>${e}</option>`).join('')}</select>`)}</div>
       <div class="linha2">${campo(i, 'prof', 'Profissão', '')}${campo(i, 'nac', 'Nacionalidade', '')}</div>
@@ -1268,8 +1324,19 @@ function cpfValido(s) {
   // ViaCEP: serviço público, sem chave; preenche rua, bairro e cidade ao completar o CEP
   raiz.addEventListener('input', async (e) => { const c = e.target; if (c.name !== 'cep') return; const d = c.value.replace(/\D/g, '').slice(0, 8); c.value = d.replace(/(\d{5})(\d)/, '$1-$2'); if (d.length !== 8) return;
     const fs = c.closest('.pre-pessoa'); try { const r = await (await fetch(`https://viacep.com.br/ws/${d}/json/`)).json(); if (r.erro) return toast('CEP não encontrado'); $('[name="end"]', fs).value = r.logradouro || ''; $('[name="bairro"]', fs).value = r.bairro || ''; $('[name="cidade"]', fs).value = `${r.localidade}/${r.uf}`; ler(); toast('Endereço preenchido pelo CEP'); } catch (_) { toast('Sem conexão com o ViaCEP'); } });
-  raiz.addEventListener('input', (e) => { const c = e.target; if (c.name === 'cpf') { const d = c.value.replace(/\D/g, '').slice(0, 11); c.value = d.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2'); if (d.length === 11 && !cpfValido(d)) c.dataset.regra = '1'; else delete c.dataset.regra; } ler(); });
+  raiz.addEventListener('input', (e) => { const c = e.target; c.classList.remove('lido'); if (c.name === 'cpf') { const d = c.value.replace(/\D/g, '').slice(0, 11); c.value = d.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2'); if (d.length === 11 && !cpfValido(d)) c.dataset.regra = '1'; else delete c.dataset.regra; } ler(); });
   raiz.addEventListener('click', (e) => { const b = e.target.closest('[data-pre-rm]'); if (!b) return; ler(); pessoas.splice(+b.dataset.preRm, 1); guarda.set('pre', pessoas); desenhar(); });
+  const fotoPre = f.appendChild(Object.assign(document.createElement('input'), { type: 'file', accept: 'image/*', hidden: true })); let alvoPre = 0;
+  raiz.addEventListener('click', (e) => { const b = e.target.closest('[data-pre-ocr]'); if (!b) return; alvoPre = +b.dataset.preOcr; fotoPre.value = ''; fotoPre.click(); });
+  fotoPre.addEventListener('change', async () => {
+    const arq = fotoPre.files[0], i = alvoPre, st = () => $(`[data-pre-st="${i}"]`); if (!arq) return;
+    try {
+      const r = await lerFoto(arq, (t) => { st().textContent = t; }), lidos = ['nome', 'cpf', 'nasc'].filter((k) => r[k]);
+      lidos.forEach((k) => { const el = $(`#pre-${i}-${k}`); el.value = r[k]; el.classList.add('lido'); });
+      ler();
+      st().textContent = lidos.length ? `Lido: ${lidos.map((k) => ({ nome: 'nome', cpf: 'CPF', nasc: 'nascimento' }[k])).join(', ')}. Confira os campos destacados — a leitura automática erra.` : SEM_LEITURA;
+    } catch (_) { st().textContent = ERRO_LEITURA; }
+  });
   $('#pre-mais').addEventListener('click', () => { if (pessoas.length >= 6) return toast('Até seis pessoas por pré-cadastro'); ler(); pessoas.push({}); guarda.set('pre', pessoas); desenhar(); $(`#pre-${pessoas.length - 1}-nome`).focus(); });
   $('#pre-apagar').addEventListener('click', () => { if (!confirm('Apagar os dados do pré-cadastro deste aparelho?')) return; pessoas = [{}]; guarda.set('pre', pessoas); saida.innerHTML = ''; desenhar(); });
   f.addEventListener('submit', (e) => {

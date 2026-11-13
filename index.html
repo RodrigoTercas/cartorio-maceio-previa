@@ -214,6 +214,8 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
         <summary><b>Preencher o formulário de habilitação on-line</b> <span class="mini">— gera o PDF pronto para imprimir e assinar</span></summary>
         <form id="form-hab" novalidate style="margin-top:1rem">
           <p class="sub" style="font-size:.93rem">São os mesmos campos do formulário do balcão. Só os nomes são obrigatórios: o que ficar em branco sai como linha para preencher à mão. <b>Nada é enviado</b> — os dados ficam neste aparelho e o PDF é montado aqui mesmo.</p>
+          <input type="file" id="hab-foto" accept="image/*" hidden>
+          <p class="aviso" style="margin-top:0"><svg aria-hidden="true"><use href="#i-escudo"/></svg><span>Em cada pessoa há o botão <b>“Ler de uma foto do RG ou da CNH”</b>. A foto é lida no seu aparelho — não é enviada nem guardada — e os campos lidos ficam destacados para você conferir.</span></p>
           <div id="hab-campos"></div>
           <div id="hab-saida" aria-live="polite"></div>
           <div class="acoes"><span style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="bt bt--linha bt--p" type="button" id="hab-pre">Trazer do pré-cadastro</button><button class="bt bt--linha bt--p" type="button" id="hab-limpar">Limpar</button></span><button class="bt bt--ouro" type="submit">Gerar PDF preenchido</button></div>
@@ -483,7 +485,7 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
     <div><div class="cab"><p class="olho">Privacidade e proteção de dados</p><h2>O que este site guarda — e o que não guarda</h2><p class="sub">Transparência conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018).</p></div>
       <div class="painel">
         <h3>Fica só no seu aparelho</h3><p>Simulações, checklists, pedidos, pré-cadastro, tema e tamanho da letra são gravados no armazenamento do seu navegador (<code>localStorage</code>). Nada disso é enviado ao cartório nem a terceiros pelo site.</p>
-        <h3>O que o site não faz</h3><ul><li>Não usa cookies de rastreamento nem ferramentas de análise de audiência.</li><li>Não carrega fontes, scripts ou mapas de terceiros sem um clique seu (o mapa do Google só abre quando você pede).</li><li>Não pede CPF, documentos ou pagamento por formulário do site.</li></ul>
+        <h3>O que o site não faz</h3><ul><li>Não usa cookies de rastreamento nem ferramentas de análise de audiência.</li><li>Não carrega fontes, scripts ou mapas de terceiros sem um clique seu (o mapa do Google só abre quando você pede).</li><li>O leitor de documentos por foto é baixado só quando você o usa, e a foto é lida no próprio aparelho: não é enviada nem guardada.</li><li>Não pede CPF, documentos ou pagamento por formulário do site.</li></ul>
         <h3>Quando você envia algo</h3><p>Ao escolher “Enviar pelo WhatsApp” ou “por e-mail”, o conteúdo sai pelo aplicativo que você escolheu, sob a política de privacidade dele. O cartório trata esses dados só para o atendimento pedido, pelo tempo exigido pelas normas do serviço extrajudicial.</p>
         <h3>Seus direitos</h3><p>Confirmação, acesso, correção, anonimização e eliminação dos dados, entre outros (LGPD, art. 18). Encarregado(a) de dados: <mark>[a serventia informa]</mark> — <a href="mailto:1crcmaceio@gmail.com">1crcmaceio@gmail.com</a>.</p>
         <div class="acoes"><span class="mini" id="priv-resumo"></span><button class="bt bt--linha" type="button" id="priv-apagar">Apagar tudo que o site guardou aqui</button></div>
