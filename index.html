@@ -7,9 +7,12 @@
 <title>7ª Circunscrição · Casamento e Notas · Maceió/AL — protótipo</title>
 <meta name="description" content="Casamento civil, escrituras, procurações, certidões e e-Notariado no Centro de Maceió/AL. Simule seu casamento, confira documentos e agende on-line.">
 <meta name="theme-color" content="#0D1F3A">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icone.svg">
 <link rel="preload" as="image" href="assets/hero-1600.webp" imagesrcset="assets/hero-q.webp 760w, assets/hero-960.webp 960w, assets/hero-1600.webp 1600w" imagesizes="100vw">
 <link rel="stylesheet" href="estilo.css">
-<script>try{var t=localStorage.getItem('m7-tema');if(t)document.documentElement.dataset.tema=t;var e=localStorage.getItem('m7-escala');if(e)document.documentElement.style.setProperty('--escala',e)}catch(_){}</script>
+<script>try{var t=localStorage.getItem('m7-tema');if(!t&&matchMedia('(prefers-color-scheme: dark)').matches)t='escuro';if(t)document.documentElement.dataset.tema=t;var e=localStorage.getItem('m7-escala');if(e)document.documentElement.style.setProperty('--escala',e)}catch(_){}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Notary","name":"7ª Circunscrição — Casamento e Notas de Maceió","alternateName":"1º Cartório de Casamentos e Notas de Maceió","telephone":"+5582993812394","email":"1crcmaceio@gmail.com","address":{"@type":"PostalAddress","streetAddress":"R. Eng. Roberto Gonçalves Menezes, 63","addressLocality":"Maceió","addressRegion":"AL","postalCode":"57020-680","addressCountry":"BR"},"openingHoursSpecification":[{"@type":"OpeningHoursSpecification","dayOfWeek":["Monday","Tuesday","Wednesday","Thursday","Friday"],"opens":"08:00","closes":"12:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":["Monday","Tuesday","Wednesday","Thursday","Friday"],"opens":"14:00","closes":"17:00"}],"sameAs":["https://www.instagram.com/cartoriodecasamentosenotas/"]}</script>
 </head>
 <body>
@@ -109,6 +112,13 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
 </section>
 
 <section class="secao" id="atalhos" style="padding-block:2rem 1rem">
+  <div class="container numeros" id="numeros" aria-label="Em números">
+    <div><b data-conta="servicos">0</b><span>serviços neste site</span></div>
+    <div><b data-conta="online">0</b><span>atos por videoconferência</span></div>
+    <div><b data-conta="anos">0</b><span>anos em Maceió</span></div>
+    <div><b data-conta="feriados">0</b><span>feriados já no calendário</span></div>
+    <div id="movimento"><b>…</b><span>movimento agora <small class="mini">(estimativa)</small></span></div>
+  </div>
   <div class="container" id="trilha-home" hidden style="margin-bottom:1rem"></div>
   <div class="container atalhos">
     <a class="atalho" href="#casamento"><span class="atalho__i"><svg aria-hidden="true"><use href="#i-aneis-p"/></svg></span><span><b>Simular casamento</b><span>Documentos, regime e prazos</span></span></a>
@@ -120,6 +130,7 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
     <a class="atalho" href="#enotariado"><span class="atalho__i"><svg aria-hidden="true"><use href="#i-escudo"/></svg></span><span><b>Certificado notarizado</b><span>Gratuito, para o e-Notariado</span></span></a>
     <button class="atalho" type="button" data-abrir="assistente"><span class="atalho__i"><svg aria-hidden="true"><use href="#i-lupa-doc"/></svg></span><span><b>Descobrir o serviço</b><span>Responda 2 perguntas</span></span></button>
   </div>
+  <div class="container" style="margin-top:2.5rem"><p class="olho">Novidades</p><div class="grade g-cards" id="lista-novidades"></div></div>
 </section>
 
 <section class="secao" id="servicos">
@@ -402,7 +413,12 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
     <div><div class="cab"><p class="olho">Dúvidas frequentes</p><h2>Perguntas que mais chegam ao balcão</h2></div>
       <div class="busca" style="max-width:100%;margin-bottom:1rem"><svg aria-hidden="true"><use href="#i-busca"/></svg>
         <label class="so-leitor" for="busca-faq">Buscar nas dúvidas</label><input id="busca-faq" type="search" placeholder="Buscar nas dúvidas…"></div>
-      <div id="lista-faq"></div><p class="mini" id="faq-vazio" hidden>Nada encontrado — pergunte direto pelo WhatsApp.</p></div>
+      <div id="lista-faq"></div><p class="mini" id="faq-vazio" hidden>Nada encontrado — pergunte direto pelo WhatsApp.</p>
+      <form class="painel" id="form-pergunta" novalidate style="margin-top:1.5rem"><p class="olho">Não achou?</p><h3 style="margin:.2rem 0 .6rem">Pergunte ao tabelião</h3>
+        <div class="campo"><label for="pg-texto">Sua pergunta</label><textarea id="pg-texto" name="pergunta" required placeholder="Ex.: posso fazer a escritura se um dos vendedores mora em outro estado?"></textarea></div>
+        <div class="linha2"><div class="campo"><label for="pg-nome">Nome</label><input id="pg-nome" name="nome" required autocomplete="name"></div><div class="campo"><label for="pg-contato">WhatsApp ou e-mail para a resposta</label><input id="pg-contato" name="contato" required></div></div>
+        <div id="pg-saida" aria-live="polite"></div>
+        <div class="acoes"><span class="mini">Resposta em até 2 dias úteis <mark>[a serventia informa]</mark>. Não substitui consulta jurídica.</span><button class="bt" type="submit">Enviar pergunta</button></div></form></div>
     <aside class="grade" style="align-content:start">
       <div class="card"><h3>Já foi atendido por nós?</h3><p>Sua avaliação ajuda outras famílias a escolherem o cartório.</p>
         <div class="card__pe"><a class="bt bt--ouro bt--p" target="_blank" rel="noopener" href="https://g.co/kgs/fFvqKzj"><svg class="cheio" aria-hidden="true"><use href="#i-estrela"/></svg> Avaliar no Google</a></div></div>
@@ -422,7 +438,9 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
         <li><svg aria-hidden="true"><use href="#i-email"/></svg><span><b>E-mail</b><a href="mailto:1crcmaceio@gmail.com">1crcmaceio@gmail.com</a></span></li>
       </ul>
       <div class="hero__acoes"><a class="bt" target="_blank" rel="noopener" href="https://maps.google.com/?q=R.+Eng.+Roberto+Gon%C3%A7alves+Menezes,+63,+Centro,+Macei%C3%B3+-+AL">Como chegar</a>
-        <a class="bt bt--linha" target="_blank" rel="noopener" href="https://www.instagram.com/cartoriodecasamentosenotas/"><svg aria-hidden="true"><use href="#i-instagram"/></svg> Instagram</a></div>
+        <a class="bt bt--linha" target="_blank" rel="noopener" href="https://www.instagram.com/cartoriodecasamentosenotas/"><svg aria-hidden="true"><use href="#i-instagram"/></svg> Instagram</a>
+        <button class="bt bt--linha" type="button" id="bt-mapa">Ver no mapa</button></div>
+      <div class="mapa" id="mapa" hidden></div>
     </div>
     <div class="card" style="align-self:start"><p class="olho">Nossa história</p>
       <p>O legado começou com <b>Sebastião Cassiano Barros</b>, que em 1978 assumiu a única Vara de Família de Maceió — origem do 1º Cartório de Registro Civil das Causas Matrimoniais da cidade.</p>
@@ -448,6 +466,23 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
         <div class="acoes"><span></span><button class="bt" type="submit">Enviar avaliação</button></div><div id="av-saida" aria-live="polite"></div></form>
       <div class="card" style="align-self:start"><h3>Reclamação ou denúncia?</h3><p>Use a ouvidoria: gera protocolo e tem prazo de resposta.</p><div class="card__pe"><a class="bt bt--linha bt--p" href="#ouvidoria">Ir para a ouvidoria</a></div></div>
     </div>
+  </div>
+</section>
+
+<section class="secao" id="privacidade">
+  <div class="container grade g-lado">
+    <div><div class="cab"><p class="olho">Privacidade e proteção de dados</p><h2>O que este site guarda — e o que não guarda</h2><p class="sub">Transparência conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018).</p></div>
+      <div class="painel">
+        <h3>Fica só no seu aparelho</h3><p>Simulações, checklists, pedidos, pré-cadastro, tema e tamanho da letra são gravados no armazenamento do seu navegador (<code>localStorage</code>). Nada disso é enviado ao cartório nem a terceiros pelo site.</p>
+        <h3>O que o site não faz</h3><ul><li>Não usa cookies de rastreamento nem ferramentas de análise de audiência.</li><li>Não carrega fontes, scripts ou mapas de terceiros sem um clique seu (o mapa do Google só abre quando você pede).</li><li>Não pede CPF, documentos ou pagamento por formulário do site.</li></ul>
+        <h3>Quando você envia algo</h3><p>Ao escolher “Enviar pelo WhatsApp” ou “por e-mail”, o conteúdo sai pelo aplicativo que você escolheu, sob a política de privacidade dele. O cartório trata esses dados só para o atendimento pedido, pelo tempo exigido pelas normas do serviço extrajudicial.</p>
+        <h3>Seus direitos</h3><p>Confirmação, acesso, correção, anonimização e eliminação dos dados, entre outros (LGPD, art. 18). Encarregado(a) de dados: <mark>[a serventia informa]</mark> — <a href="mailto:1crcmaceio@gmail.com">1crcmaceio@gmail.com</a>.</p>
+        <div class="acoes"><span class="mini" id="priv-resumo"></span><button class="bt bt--linha" type="button" id="priv-apagar">Apagar tudo que o site guardou aqui</button></div>
+      </div></div>
+    <aside class="grade" style="align-content:start">
+      <div class="card"><h3>Instalar como aplicativo</h3><p>Este site funciona como app: abre sem internet (suas simulações ficam disponíveis) e ganha ícone na tela inicial.</p><div class="card__pe"><button class="bt bt--p" type="button" id="bt-instalar" hidden>Instalar</button><span class="mini" id="instalar-dica">No celular, use “Adicionar à tela de início” no menu do navegador.</span></div></div>
+      <div class="card"><h3>Avisos no aparelho</h3><p>Em “Acompanhar pedido”, você pode autorizar avisos do navegador quando uma etapa mudar. Só funciona com sua permissão, e você a retira a qualquer momento.</p></div>
+    </aside>
   </div>
 </section>
 
@@ -527,7 +562,7 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
         <p style="margin-top:1rem">Registro civil das pessoas naturais e tabelionato de notas.</p></div>
       <div><h4>Serviços</h4><ul><li><a href="#casamento">Casamento</a></li><li><a href="#servicos">Escrituras e procurações</a></li><li><a href="#certidoes">Certidões</a></li><li><a href="#enotariado">e-Notariado</a></li></ul></div>
       <div><h4>Atendimento</h4><ul><li><a href="#atendimento">Agendar</a></li><li><a href="#atendimento" data-aba="pedidos">Acompanhar pedido</a></li><li><a href="#verificar">Verificar documento</a></li><li><a href="#duvidas">Dúvidas</a></li><li><a href="https://www.registrocivil.net/2873?targetForm=T" target="_blank" rel="noopener">Registro Civil on-line</a></li></ul></div>
-      <div><h4>Institucional</h4><ul><li><a href="#ouvidoria">Ouvidoria</a></li><li><a href="#glossario">Glossário</a></li><li><a href="#empresas">Empresas e advogados</a></li><li><a href="#estrangeiros" lang="en">English · Español</a></li><li><a href="#links">Links úteis</a></li><li><a href="#transparencia">Transparência</a></li><li><a href="#feriados">Feriados 2026</a></li></ul></div>
+      <div><h4>Institucional</h4><ul><li><a href="#ouvidoria">Ouvidoria</a></li><li><a href="#glossario">Glossário</a></li><li><a href="#empresas">Empresas e advogados</a></li><li><a href="#estrangeiros" lang="en">English · Español</a></li><li><a href="#links">Links úteis</a></li><li><a href="#privacidade">Privacidade e LGPD</a></li><li><a href="#transparencia">Transparência</a></li><li><a href="#feriados">Feriados 2026</a></li></ul></div>
     </div>
     <div class="rodape__base"><span>© <span id="ano">2026</span> 7ª Circunscrição — Casamento e Notas de Maceió/AL</span><span>Protótipo para avaliação</span></div>
   </div>

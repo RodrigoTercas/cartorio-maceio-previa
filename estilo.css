@@ -301,3 +301,13 @@ mark{background:var(--superficie-2);color:var(--ouro-texto);padding:0 .3rem;bord
 /* pré-cadastro, comparativo */
 .pre-pessoa{margin-bottom:.9rem}.pre-pessoa legend{display:flex;gap:.6rem;align-items:center}
 .comp td:first-child{font-weight:600;white-space:nowrap}.comp td{vertical-align:top}
+
+/* números, novidades, mapa, revelação, compartilhar */
+.numeros{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;margin-bottom:1.6rem}
+.numeros div{padding:1rem 1.1rem;border:1px solid var(--borda);border-radius:var(--raio);background:var(--superficie);box-shadow:var(--sombra-1)}
+.numeros b{display:block;font:600 2rem/1 var(--f-titulo);color:var(--navy-800)}[data-tema="escuro"] .numeros b{color:var(--ouro-claro)}.numeros span{font-size:.82rem;color:var(--texto-2)}
+.novidade time{display:block;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ouro-texto)}
+.mapa{margin-top:1rem;border-radius:var(--raio);overflow:hidden;border:1px solid var(--borda)}.mapa iframe{display:block;width:100%;height:320px;border:0}
+.revela{opacity:0;transform:translateY(14px);transition:opacity .55s ease,transform .55s ease}.revela.ver{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.revela{opacity:1;transform:none;transition:none}}
+.parcelas{display:flex;flex-wrap:wrap;gap:.4rem;margin:.6rem 0 0}.parcelas span{padding:.3rem .6rem;border-radius:var(--raio-full);background:var(--fundo-2);font-size:.8rem}

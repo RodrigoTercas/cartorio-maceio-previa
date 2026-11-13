@@ -164,6 +164,16 @@ const MELHORIAS = [
   ['Pré-cadastro', 'Dados das pessoas do ato, com CPF validado, guardados só no aparelho; gera o resumo impresso e preenche o agendamento.', '#atendimento'],
   ['Religioso com efeito civil e diligência', 'Prazo de 90 dias para registrar o termo religioso (CC, art. 1.516) e o acréscimo da tabela para cerimônia fora do cartório.', '#casamento'],
   ['Cartório × Justiça', 'Divórcio e inventário lado a lado: requisitos, advogado, prazo e custas calculadas.', '#atendimento'],
+  ['Aplicativo instalável (PWA)', 'Manifesto + service worker: ícone na tela inicial e o site abre sem internet, com as simulações guardadas.', '#privacidade'],
+  ['Privacidade e LGPD', 'O que fica no aparelho, o que nunca é enviado, direitos do titular e botão que apaga tudo que o site guardou.', '#privacidade'],
+  ['Endereço pelo CEP', 'No pré-cadastro, digitar o CEP preenche rua, bairro, cidade e UF (ViaCEP, serviço público).', '#atendimento'],
+  ['Avisos do navegador', 'Com sua permissão, o site avisa quando a etapa de um pedido muda — demonstrado no “simular próxima etapa”.', '#atendimento'],
+  ['Compartilhar', 'Roteiro do casamento, recibo e pedidos saem pela folha nativa de compartilhamento do celular.', '#casamento'],
+  ['Parcelamento', 'Na calculadora, o valor em 3, 6 e 12 vezes (meio eletrônico, inclusive parcelado — Lei 8.935/1994, art. 30, XV).', '#atendimento'],
+  ['Pergunte ao tabelião', 'Dúvida que o FAQ não resolve vira pergunta com protocolo PT- e prazo de resposta.', '#duvidas'],
+  ['Novidades e números', 'Cards com as mudanças legais recentes; contadores animados e estimativa de movimento na home.', '#inicio'],
+  ['Mapa sob demanda', 'O mapa do Google só carrega quando você clica — sem rastreador antes disso.', '#contato'],
+  ['Tema automático e animações', 'Segue o tema claro/escuro do sistema; blocos surgem ao rolar, respeitando “reduzir movimento”.', '#inicio'],
   ['Lembretes no calendário', 'Arquivo .ics do agendamento (com alarme 2 h antes) e das datas do casamento: entrada da habilitação e cerimônia.', '#casamento'],
 ];
 
@@ -462,13 +472,15 @@ const simuladorCas = (function simulador() {
         <a class="bt bt--whats" id="cas-enviar" target="_blank" rel="noopener">${ic('whatsapp')} Enviar roteiro</a>
         <button class="bt bt--linha" type="button" onclick="print()">${ic('impressora')} Imprimir</button>
         <a class="bt bt--linha" href="assets/docs/formulario-habilitacao-casamento.pdf" target="_blank" rel="noopener">${ic('arquivo')} Formulário (PDF)</a>
-        ${eventos.length ? `<button class="bt bt--linha" type="button" id="cas-ics">${ic('agenda')} Lembretes no calendário</button>` : ''}</span>
+        ${eventos.length ? `<button class="bt bt--linha" type="button" id="cas-ics">${ic('agenda')} Lembretes no calendário</button>` : ''}
+        <button class="bt bt--linha" type="button" id="cas-compartilhar" data-compartilhar="Nosso roteiro de casamento" data-texto="">Compartilhar</button></span>
         <button class="bt bt--ouro" type="button" data-agendar="casamento">${ic('agenda')} Agendar a habilitação</button></div>
       <p class="mini">Orientação geral com base na lei. A equipe confere o caso de vocês antes da habilitação.</p>`;
     $('#cas-ics')?.addEventListener('click', () => { baixarICS('casamento-lembretes.ics', eventos); toast('Lembretes salvos — abra o arquivo no seu calendário'); });
     ligarChecklist($('#resultado-cas'), 'casamento', ({ total, feitos, faltando }) => {
       $('#resultado-cas .progresso i').style.width = (100 * feitos / total) + '%';
       $('#resultado-cas [data-prog]').textContent = `${feitos} de ${total} separados`; guarda.set('trilha', { ...guarda.get('trilha', {}), docs: [feitos, total] }); desenharTrilha();
+      $('#cas-compartilhar').dataset.texto = `Roteiro do casamento — ${LOC[x.local]} · ${ROT[x.regime]}${x.data ? ` · ${dataBR(new Date(x.data + 'T12:00:00'))}` : ''}. Faltam: ${faltando.join(', ') || 'nada'}.`;
       $('#cas-enviar').href = wa(`Olá! Simulei nosso casamento no site.\n• Cerimônia: ${LOC[x.local]}\n• Regime: ${ROT[x.regime]}${x.data ? `\n• Data desejada: ${dataBR(new Date(x.data + 'T12:00:00'))}` : ''}\n\nAinda reunindo:\n${faltando.map((d) => '• ' + d).join('\n') || '(tudo pronto)'}`);
     });
   }
@@ -591,7 +603,8 @@ desenharPedidos();
 const ETAPAS = { Agendamento: ['Pedido registrado no site', 'Enviado à equipe', 'Horário confirmado', 'Atendimento realizado'],
   Certidão: ['Pedido registrado no site', 'Enviado à equipe', 'Registro localizado', 'Certidão emitida'],
   Ouvidoria: ['Manifestação registrada', 'Recebida pela serventia', 'Em apuração', 'Resposta enviada'],
-  Empresa: ['Pedido registrado no site', 'Enviado à equipe', 'Contato da equipe', 'Atendimento recorrente ativo'] };
+  Empresa: ['Pedido registrado no site', 'Enviado à equipe', 'Contato da equipe', 'Atendimento recorrente ativo'],
+  Pergunta: ['Pergunta registrada', 'Enviada à equipe', 'Em análise pelo tabelião', 'Respondida'] };
 function acompanhar(prot) {
   const p = guarda.get('pedidos', []).find((q) => q.prot === prot), saida = $('#ac-saida');
   if (!p) { saida.innerHTML = `<div class="aviso aviso--alerta">${ic('alerta')}<p>Não encontramos <b>${esc(prot)}</b> neste aparelho — os pedidos ficam só no navegador em que foram feitos. <a target="_blank" rel="noopener" href="${wa(`Olá! Quero saber o andamento do pedido ${prot}.`)}">Perguntar à equipe pelo WhatsApp</a>.</p></div>`; return; }
@@ -599,13 +612,17 @@ function acompanhar(prot) {
   saida.innerHTML = `<div class="resumo"><p class="olho">${ic('check-circ')} ${esc(p.tipo)} ${esc(p.prot)}</p><p style="margin:0">${esc(p.resumo)}</p>
     <ol class="linha-tempo">${etapas.map((t, i) => `<li class="${i <= feita ? 'feito' : 'pendente'}"><b>${t}</b><span>${i === 0 ? new Date(p.quando).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : i <= feita ? 'concluída' : 'a confirmar pela equipe'}</span></li>`).join('')}</ol>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="bt bt--whats bt--p" target="_blank" rel="noopener" href="${wa(`Olá! Quero saber o andamento do pedido ${p.prot}.`)}">${ic('whatsapp')} Perguntar o andamento</a>
-      ${feita < etapas.length - 1 ? `<button class="bt bt--linha bt--p" type="button" data-avancar="${esc(p.prot)}">Simular próxima etapa</button>` : ''}</div>
+      ${feita < etapas.length - 1 ? `<button class="bt bt--linha bt--p" type="button" data-avancar="${esc(p.prot)}">Simular próxima etapa</button>` : ''}
+      ${'Notification' in window && Notification.permission !== 'granted' ? '<button class="bt bt--linha bt--p" type="button" id="ac-avisar">Avisar-me das etapas</button>' : ''}
+      <button class="bt bt--linha bt--p" type="button" data-compartilhar="${esc(p.tipo + ' ' + p.prot)}" data-texto="${esc(p.texto)}">Compartilhar</button></div>
     <p class="mini" style="margin:.7rem 0 0">Protótipo: no site definitivo as etapas são atualizadas pela equipe; o botão “simular” só demonstra a tela.</p></div>`;
 }
 $('#form-acomp').addEventListener('submit', (e) => { e.preventDefault(); const c = $('#ac-prot'); c.value = c.value.trim().toUpperCase(); if (!validar(e.target)) return; acompanhar(c.value); });
 $('#ac-saida').addEventListener('click', (e) => { const b = e.target.closest('[data-avancar]'); if (!b) return;
   const l = guarda.get('pedidos', []), p = l.find((q) => q.prot === b.dataset.avancar); if (!p) return;
-  p.etapa = Math.min((ETAPAS[p.tipo] || ETAPAS.Agendamento).length - 1, (p.etapa ?? 0) + 1); guarda.set('pedidos', l); acompanhar(p.prot); });
+  p.etapa = Math.min((ETAPAS[p.tipo] || ETAPAS.Agendamento).length - 1, (p.etapa ?? 0) + 1); guarda.set('pedidos', l); acompanhar(p.prot);
+  if ('Notification' in window && Notification.permission === 'granted') setTimeout(() => new Notification(`${p.tipo} ${p.prot}`, { body: `Nova etapa: ${(ETAPAS[p.tipo] || ETAPAS.Agendamento)[p.etapa]}`, icon: 'assets/icone.svg' }), 800); });
+$('#ac-saida').addEventListener('click', async (e) => { if (!e.target.closest('#ac-avisar')) return; const r = await Notification.requestPermission(); toast(r === 'granted' ? 'Avisos ativados neste aparelho' : 'Sem permissão — os avisos ficam desligados'); if (r === 'granted') acompanhar($('#ac-prot').value); });
 
 // verificar documento — copia o código e abre a consulta oficial (as páginas do TJAL e do CNJ não aceitam o código pela URL)
 $$('[data-verificar]').forEach((f) => f.addEventListener('submit', async (e) => {
@@ -718,7 +735,8 @@ const agendamento = (() => {
         <a class="bt bt--whats bt--g" target="_blank" rel="noopener" href="${wa(texto)}">${ic('whatsapp')} Enviar pelo WhatsApp</a>
         <a class="bt bt--linha" href="mailto:1crcmaceio@gmail.com?subject=${encodeURIComponent('Agendamento ' + prot)}&body=${encodeURIComponent(texto.replace(/\*/g, ''))}">${ic('email')} Enviar por e-mail</a>
         <button class="bt bt--linha" type="button" onclick="print()">${ic('impressora')} Imprimir</button>
-        <button class="bt bt--linha" type="button" id="ag-ics">${ic('agenda')} Salvar no calendário</button></div>
+        <button class="bt bt--linha" type="button" id="ag-ics">${ic('agenda')} Salvar no calendário</button>
+        <button class="bt bt--linha" type="button" data-compartilhar="Agendamento ${prot}" data-texto="${esc(texto.replace(/\*/g, ''))}">Compartilhar</button></div>
       <p class="mini" style="margin:.9rem 0 0"><button class="bt bt--linha bt--p" type="button" id="ag-novo">Fazer outro agendamento</button> · <button class="bt bt--linha bt--p" type="button" data-servico="${s.id}">Ver documentos de ${esc(s.nome)}</button></p></div>`;
     $('#ag-novo').addEventListener('click', () => { r.hidden = true; f.hidden = false; f.reset(); formas(); mostrar(0); });
     $('#ag-ics').addEventListener('click', () => {
@@ -808,6 +826,7 @@ const custas = (() => {
         <tr><td>TSNR — taxa de fiscalização (${TABELA_AL.tsnr}%)</td><td class="item">art. 24</td><td class="num">${brl(taxa)}</td></tr>
         <tr><td>ISS municipal sobre o emolumento</td><td class="item">Maceió</td><td class="num"><mark>[a serventia informa]</mark></td></tr>
         <tr class="total"><td colspan="2">Total estimado (sem ISS)</td><td class="num">${brl(total)}</td></tr></tbody></table></div>
+      <p class="mini" style="margin:.6rem 0 0">Parcelado no cartão <mark>[condições: a serventia informa]</mark>:</p><div class="parcelas">${[3, 6, 12].map((n) => `<span>${n}× de ${brl(total / n)}</span>`).join('')}</div>
       <p class="mini">Confira no <a href="https://emolumentos.tjal.jus.br/" target="_blank" rel="noopener">simulador oficial do TJAL</a>. Não inclui ITBI/ITCMD, registro de imóveis nem certidões de outros órgãos. O valor é conferido pelo cartório antes do ato.</p>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="bt bt--p" type="button" data-agendar="${sel.value in POR_ID ? sel.value : 'escritura'}">${ic('agenda')} Agendar este ato</button>
         <a class="bt bt--whats bt--p" target="_blank" rel="noopener" href="${wa(`Olá! Simulei no site: ${a.nome} — estimativa de ${brl(total)}. Podem confirmar o valor?`)}">${ic('whatsapp')} Confirmar com a equipe</a></div></div>`;
@@ -839,7 +858,7 @@ const custas = (() => {
 /* ------------------------------------------------------------------ vistas (menu abre a seção, não rola a página)
    A página continua sendo uma só — o roteador apenas esconde as outras seções.
    Hash na URL: Voltar/Avançar do navegador funcionam e cada vista tem link próprio. */
-const VISTAS = ['servicos', 'casamento', 'certidoes', 'verificar', 'atendimento', 'links', 'enotariado', 'duvidas', 'contato', 'ouvidoria', 'glossario', 'empresas', 'estrangeiros'];
+const VISTAS = ['servicos', 'casamento', 'certidoes', 'verificar', 'atendimento', 'links', 'privacidade', 'enotariado', 'duvidas', 'contato', 'ouvidoria', 'glossario', 'empresas', 'estrangeiros'];
 const ALIAS = { espaco: 'casamento', galeria: 'casamento', topo: 'inicio', conteudo: 'inicio', feriados: 'contato', avaliacao: 'contato', transparencia: 'contato' };
 const secoes = $$('main > section');
 function vistaDoHash() { const id = location.hash.slice(1); return VISTAS.includes(ALIAS[id] || id) ? (ALIAS[id] || id) : 'inicio'; }
@@ -854,6 +873,7 @@ function mostrarVista() {
   topo.classList.remove('aberto'); $('#bt-menu').setAttribute('aria-expanded', 'false');
 }
 addEventListener('hashchange', mostrarVista);
+document.addEventListener('keydown', (e) => { if (e.key === '/' && !/input|textarea|select/i.test(e.target.tagName)) { e.preventDefault(); location.hash = '#inicio'; setTimeout(() => $('#busca-hero').focus(), 60); } });
 document.documentElement.style.scrollBehavior = 'auto'; mostrarVista();
 
 /* ------------------------------------------------------------------ glossário, ouvidoria, empresas, estrangeiros, feriados, avaliação */
@@ -914,6 +934,69 @@ $$('[data-idioma]').forEach((b) => b.addEventListener('click', () => {
   });
 })();
 
+/* ------------------------------------------------------------------ compartilhar (Web Share, com cópia como reserva) */
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-compartilhar]'); if (!b) return;
+  const dados = { title: b.dataset.compartilhar, text: b.dataset.texto || b.dataset.compartilhar, url: location.href };
+  try { if (navigator.share) { await navigator.share(dados); return; } await navigator.clipboard.writeText(`${dados.text}\n${dados.url}`); toast('Texto copiado — cole onde quiser'); } catch (_) { /* cancelado */ }
+});
+
+/* ------------------------------------------------------------------ aplicativo (PWA) */
+if ('serviceWorker' in navigator && /^(https:|http:\/\/localhost)/.test(location.href)) navigator.serviceWorker.register('sw.js').catch(() => {});
+let promptInstalar = null;
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); promptInstalar = e; $('#bt-instalar').hidden = false; $('#instalar-dica').hidden = true; });
+$('#bt-instalar').addEventListener('click', async () => { if (!promptInstalar) return; promptInstalar.prompt(); const { outcome } = await promptInstalar.userChoice; toast(outcome === 'accepted' ? 'Instalado — procure o ícone na tela inicial' : 'Tudo bem, fica para depois'); promptInstalar = null; $('#bt-instalar').hidden = true; });
+
+/* ------------------------------------------------------------------ revelação ao rolar */
+(function revelar() {
+  const alvos = $$('.card, .painel, .atalho, .numeros div, #verificar .card');
+  if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const io = new IntersectionObserver((es) => es.forEach((x) => { if (x.isIntersecting) { x.target.classList.add('ver'); io.unobserve(x.target); } }), { rootMargin: '0px 0px -8% 0px' });
+  alvos.forEach((a, i) => { a.classList.add('revela'); a.style.transitionDelay = `${(i % 4) * 60}ms`; io.observe(a); });
+})();
+
+/* ------------------------------------------------------------------ números e movimento (home) */
+(function numeros() {
+  const alvo = { servicos: SERVICOS.length, online: SERVICOS.filter((s) => s.online).length, anos: new Date().getFullYear() - 1978, feriados: Object.keys(FERIADOS).length };
+  const contar = (el, fim) => { const t0 = performance.now(), dur = 1100; const passo = (t) => { const k = Math.min(1, (t - t0) / dur); el.textContent = Math.round(fim * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(passo); }; requestAnimationFrame(passo); };
+  const io = new IntersectionObserver((es) => es.forEach((x) => { if (!x.isIntersecting) return; $$('[data-conta]', x.target).forEach((b) => contar(b, alvo[b.dataset.conta])); io.disconnect(); }));
+  io.observe($('#numeros'));
+  // aba em segundo plano pausa o requestAnimationFrame: garante o valor final
+  setTimeout(() => $$('#numeros [data-conta]').forEach((x) => { if (x.textContent === '0') x.textContent = alvo[x.dataset.conta]; }), 2500);
+  // ponytail: movimento estimado pela hora do dia (padrão típico de balcão); trocar pela fila real da serventia
+  const [aberto] = estadoAgora(), h = +new Intl.DateTimeFormat('en-US', { timeZone: 'America/Maceio', hour: 'numeric', hourCycle: 'h23' }).format(new Date());
+  const nivel = !aberto ? ['Fechado', 'agende para evitar fila'] : h < 9 ? ['Baixo', 'espera de ~5 min'] : h < 11 ? ['Alto', 'espera de ~25 min'] : h < 12 ? ['Médio', 'espera de ~15 min'] : h < 15 ? ['Baixo', 'espera de ~5 min'] : ['Médio', 'espera de ~15 min'];
+  $('#movimento b').textContent = nivel[0]; $('#movimento span').insertAdjacentHTML('beforeend', ` · ${nivel[1]}`);
+})();
+
+/* ------------------------------------------------------------------ novidades */
+const NOVIDADES = [
+  ['2026-03-29', 'Nova tabela de emolumentos em Alagoas', 'Desde março vale a tabela da Lei estadual 9.778/2025, com reajuste anual pelo INPC em janeiro. A calculadora deste site já usa os valores novos.', '#atendimento', 'Calcular custas'],
+  ['2026-06-22', 'CNJ lança a plataforma Meu Registro', 'Um só endereço para pedir serviços de cartórios de todo o país, acompanhar pelo protocolo unificado e pagar on-line. Certidões deste cartório continuam pelo Registro Civil on-line.', 'https://irtdpjbrasil.org.br/nova-plataforma-que-simplifica-acesso-a-documentos-cartorarios-ja-recebeu-470-mil-pedidos', 'Ler a notícia'],
+  ['2024-08-26', 'Divórcio e inventário em cartório com filhos menores', 'A Resolução CNJ 571/2024 passou a admitir a via extrajudicial em hipóteses com incapazes, com manifestação do Ministério Público. Veja o comparativo cartório × Justiça.', '#atendimento', 'Ver comparativo'],
+];
+$('#lista-novidades').innerHTML = NOVIDADES.map(([d, t, r, u, a]) => `<article class="card novidade"><time datetime="${d}">${dataBR(new Date(d + 'T12:00:00'))}</time><h3>${esc(t)}</h3><p>${esc(r)}</p><div class="card__pe"><a class="bt bt--linha bt--p" href="${u}" ${u.startsWith('http') ? 'target="_blank" rel="noopener"' : ''}>${a}</a></div></article>`).join('');
+
+/* ------------------------------------------------------------------ mapa sob demanda */
+$('#bt-mapa').addEventListener('click', () => { const m = $('#mapa'); m.hidden = false; m.innerHTML = '<iframe title="Mapa: R. Eng. Roberto Gonçalves Menezes, 63 — Centro, Maceió" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=R.+Eng.+Roberto+Gon%C3%A7alves+Menezes,+63,+Centro,+Macei%C3%B3+-+AL&output=embed"></iframe>'; $('#bt-mapa').hidden = true; m.scrollIntoView({ block: 'nearest' }); });
+
+/* ------------------------------------------------------------------ privacidade: inventário e apagamento */
+(function privacidade() {
+  const resumo = () => { const n = Object.keys(localStorage).filter((k) => k.startsWith('m7-')).length; $('#priv-resumo').textContent = n ? `${n} item(ns) guardado(s) neste navegador.` : 'Nada guardado neste navegador.'; };
+  $('#priv-apagar').addEventListener('click', () => { if (!confirm('Apagar simulações, pedidos, pré-cadastro e preferências deste aparelho?')) return; Object.keys(localStorage).filter((k) => k.startsWith('m7-')).forEach((k) => localStorage.removeItem(k)); toast('Tudo apagado — a página vai recarregar'); setTimeout(() => location.reload(), 900); });
+  resumo(); addEventListener('hashchange', resumo);
+})();
+
+/* ------------------------------------------------------------------ pergunte ao tabelião */
+$('#form-pergunta').addEventListener('submit', (e) => {
+  e.preventDefault(); const f = e.target; if (!validar(f)) return;
+  const x = Object.fromEntries(new FormData(f)), prot = protocolo('PT');
+  const texto = `*Pergunta ${prot}*\n\n${x.pergunta}\n\nNome: ${x.nome}\nResposta para: ${x.contato}\n\nEnviado pelo site.`;
+  registrarPedido({ tipo: 'Pergunta', prot, resumo: x.pergunta.slice(0, 60) + (x.pergunta.length > 60 ? '…' : ''), texto });
+  $('#pg-saida').innerHTML = `<div class="resumo"><p class="olho">${ic('check-circ')} Pergunta ${prot} registrada</p><div style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="bt bt--whats bt--p" target="_blank" rel="noopener" href="${wa(texto)}">${ic('whatsapp')} Enviar pelo WhatsApp</a><a class="bt bt--linha bt--p" href="mailto:1crcmaceio@gmail.com?subject=${encodeURIComponent('Pergunta ' + prot)}&body=${encodeURIComponent(texto.replace(/\*/g, ''))}">${ic('email')} Por e-mail</a><a class="bt bt--linha bt--p" href="#atendimento" data-aba="pedidos">Acompanhar</a></div></div>`;
+  toast(`Pergunta ${prot} salva em “Meus pedidos”`); f.reset();
+});
+
 /* ------------------------------------------------------------------ links úteis */
 const LINKS = [
   ['Formulário de habilitação (PDF)', 'Formulário do cartório para preencher à mão e levar com os documentos do casamento.', 'assets/docs/formulario-habilitacao-casamento.pdf'],
@@ -964,10 +1047,15 @@ function cpfValido(s) {
     raiz.innerHTML = pessoas.map((p, i) => `<fieldset class="painel pre-pessoa" data-i="${i}"><legend class="legenda">Pessoa ${i + 1} ${pessoas.length > 1 ? `<button class="bt bt--linha bt--p" type="button" data-pre-rm="${i}">remover</button>` : ''}</legend>
       <div class="linha2">${campo(i, 'nome', 'Nome completo', 'required autocomplete="off"')}${campo(i, 'cpf', 'CPF', 'required inputmode="numeric" placeholder="000.000.000-00" maxlength="14"')}</div>
       <div class="linha2">${campo(i, 'nasc', 'Data de nascimento', 'type="date"')}${campo(i, 'ec', 'Estado civil', `<select id="pre-${i}-ec" name="ec">${EC.map((e) => `<option ${p.ec === e ? 'selected' : ''}>${e}</option>`).join('')}</select>`)}</div>
-      <div class="linha2">${campo(i, 'prof', 'Profissão', '')}${campo(i, 'nac', 'Nacionalidade', '')}</div></fieldset>`).join('');
+      <div class="linha2">${campo(i, 'prof', 'Profissão', '')}${campo(i, 'nac', 'Nacionalidade', '')}</div>
+      <div class="linha2">${campo(i, 'cep', 'CEP', 'inputmode="numeric" maxlength="9" placeholder="57000-000"')}${campo(i, 'end', 'Endereço', 'placeholder="preenchido pelo CEP"')}</div>
+      <div class="linha2">${campo(i, 'bairro', 'Bairro', '')}${campo(i, 'cidade', 'Cidade/UF', '')}</div></fieldset>`).join('');
     pessoas.forEach((p, i) => { if (!p.nac) $(`#pre-${i}-nac`).value = 'Brasileira'; });
   }
   const ler = () => { pessoas = $$('.pre-pessoa', raiz).map((fs) => Object.fromEntries($$('input, select', fs).map((c) => [c.name, c.value]))); guarda.set('pre', pessoas); };
+  // ViaCEP: serviço público, sem chave; preenche rua, bairro e cidade ao completar o CEP
+  raiz.addEventListener('input', async (e) => { const c = e.target; if (c.name !== 'cep') return; const d = c.value.replace(/\D/g, '').slice(0, 8); c.value = d.replace(/(\d{5})(\d)/, '$1-$2'); if (d.length !== 8) return;
+    const fs = c.closest('.pre-pessoa'); try { const r = await (await fetch(`https://viacep.com.br/ws/${d}/json/`)).json(); if (r.erro) return toast('CEP não encontrado'); $('[name="end"]', fs).value = r.logradouro || ''; $('[name="bairro"]', fs).value = r.bairro || ''; $('[name="cidade"]', fs).value = `${r.localidade}/${r.uf}`; ler(); toast('Endereço preenchido pelo CEP'); } catch (_) { toast('Sem conexão com o ViaCEP'); } });
   raiz.addEventListener('input', (e) => { const c = e.target; if (c.name === 'cpf') { const d = c.value.replace(/\D/g, '').slice(0, 11); c.value = d.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2'); if (d.length === 11 && !cpfValido(d)) c.dataset.regra = '1'; else delete c.dataset.regra; } ler(); });
   raiz.addEventListener('click', (e) => { const b = e.target.closest('[data-pre-rm]'); if (!b) return; ler(); pessoas.splice(+b.dataset.preRm, 1); guarda.set('pre', pessoas); desenhar(); });
   $('#pre-mais').addEventListener('click', () => { if (pessoas.length >= 6) return toast('Até seis pessoas por pré-cadastro'); ler(); pessoas.push({}); guarda.set('pre', pessoas); desenhar(); $(`#pre-${pessoas.length - 1}-nome`).focus(); });
@@ -975,7 +1063,7 @@ function cpfValido(s) {
   f.addEventListener('submit', (e) => {
     e.preventDefault(); ler(); $$('[name="cpf"]', raiz).forEach((c) => { if (!cpfValido(c.value)) c.dataset.regra = '1'; }); if (!validar(f)) return toast('Confira os campos em vermelho — CPF inválido ou nome em branco');
     saida.innerHTML = `<div class="resumo"><p class="olho">${ic('check-circ')} Resumo para levar ao cartório</p>
-      <div class="tabela"><table><thead><tr><th>Nome</th><th>CPF</th><th>Nascimento</th><th>Estado civil</th><th>Profissão</th><th>Nacionalidade</th></tr></thead><tbody>${pessoas.map((p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.cpf)}</td><td>${p.nasc ? dataBR(new Date(p.nasc + 'T12:00:00')) : '—'}</td><td>${esc(p.ec || '')}</td><td>${esc(p.prof || '—')}</td><td>${esc(p.nac || '')}</td></tr>`).join('')}</tbody></table></div>
+      <div class="tabela"><table><thead><tr><th>Nome</th><th>CPF</th><th>Nascimento</th><th>Estado civil</th><th>Profissão</th><th>Nacionalidade</th><th>Endereço</th></tr></thead><tbody>${pessoas.map((p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.cpf)}</td><td>${p.nasc ? dataBR(new Date(p.nasc + 'T12:00:00')) : '—'}</td><td>${esc(p.ec || '')}</td><td>${esc(p.prof || '—')}</td><td>${esc(p.nac || '')}</td><td>${esc([p.end, p.bairro, p.cidade, p.cep].filter(Boolean).join(', ') || '—')}</td></tr>`).join('')}</tbody></table></div>
       <p class="mini">Gerado em ${new Date().toLocaleString('pt-BR')}. Leve com os documentos originais; o cartório confere e lança no ato.</p>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="bt bt--linha bt--p" type="button" onclick="print()">${ic('impressora')} Imprimir</button><button class="bt bt--p" type="button" id="pre-usar">${ic('agenda')} Usar no agendamento</button></div></div>`;
     $('#pre-usar').addEventListener('click', () => { trocarAba('agendar'); $('#ag-nome').value = pessoas[0].nome; $('#ag-obs').value = `Pessoas do ato (pré-cadastro feito no site): ${pessoas.map((p) => p.nome).join('; ')}`; toast('Nome e pessoas do ato levados ao agendamento — sem os CPFs'); });
