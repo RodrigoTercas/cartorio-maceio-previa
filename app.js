@@ -13,6 +13,7 @@ const guarda = {
   get(k, d) { try { return JSON.parse(localStorage.getItem('m7-' + k)) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem('m7-' + k, JSON.stringify(v)); } catch { /* modo privado */ } },
 };
+const mailto = (assunto, texto) => `mailto:1crcmaceio@gmail.com?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto.replace(/\*/g, ''))}`;
 function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('ver'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('ver'), 3200); }
 const dataBR = (d) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
@@ -849,7 +850,8 @@ const custas = (() => {
     registrarPedido({ tipo: 'Certidão', prot, resumo: `${tipo} · ${x.nome}`, texto: msg });
     $('#cert-saida').innerHTML = `<div class="resumo"><p class="olho">${ic('check-circ')} Pedido ${prot} montado</p><p style="margin:0 0 .8rem">${esc(texto).replace(/\n/g, '<br>')}</p>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">${daqui ? `<a class="bt bt--ouro" target="_blank" rel="noopener" href="https://www.registrocivil.net/2873?targetForm=T">Pedir pelo Registro Civil on-line</a>` : ''}
-      <a class="bt bt--whats" target="_blank" rel="noopener" href="${wa(msg)}">${ic('whatsapp')} ${daqui ? 'Ou pelo WhatsApp' : 'Enviar à equipe'}</a></div>
+      <a class="bt bt--whats" target="_blank" rel="noopener" href="${wa(msg)}">${ic('whatsapp')} ${daqui ? 'Ou pelo WhatsApp' : 'Enviar à equipe'}</a>
+      <a class="bt bt--linha" href="${mailto('Pedido de certidão ' + prot, msg)}">${ic('email')} Por e-mail</a></div>
       ${daqui ? '' : '<p class="mini" style="margin:.7rem 0 0">Registros de outros cartórios: a equipe solicita à serventia de origem pela central nacional.</p>'}</div>`;
     toast(`Pedido ${prot} salvo em “Meus pedidos”`);
   });
@@ -1027,7 +1029,7 @@ $('#lista-links').innerHTML = LINKS.map(([t, d, u]) => `<a class="card card--cli
     const texto = `*Pedido de certidão notarial ${prot}*\n\nAto: ${x.tipo}${x.ano ? ` (${x.ano})` : ''}${x.livro ? `\nLivro/folha: ${x.livro}` : ''}\nPartes: ${x.partes}\nFinalidade: ${x.fim}\n\nSolicitante: ${x.nome}\nWhatsApp: ${x.tel}\n\nEnviado pelo site.`;
     registrarPedido({ tipo: 'Certidão', prot, resumo: `${x.tipo} · ${x.partes}`, texto });
     $('#cn-saida').innerHTML = `<div class="resumo"><p class="olho">${ic('check-circ')} Pedido ${prot} montado</p><p style="margin:0 0 .8rem">A equipe localiza o ato no livro, confirma o valor e avisa quando a certidão estiver pronta.</p>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="bt bt--whats" target="_blank" rel="noopener" href="${wa(texto)}">${ic('whatsapp')} Enviar à equipe</a><a class="bt bt--linha bt--p" href="#atendimento" data-aba="pedidos">Acompanhar</a></div></div>`;
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="bt bt--whats" target="_blank" rel="noopener" href="${wa(texto)}">${ic('whatsapp')} Enviar à equipe</a><a class="bt bt--linha" href="${mailto('Pedido de certidão notarial ' + prot, texto)}">${ic('email')} Por e-mail</a><a class="bt bt--linha bt--p" href="#atendimento" data-aba="pedidos">Acompanhar</a></div></div>`;
     toast(`Pedido ${prot} salvo em “Meus pedidos”`);
   });
 })();
