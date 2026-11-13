@@ -175,6 +175,7 @@ const MELHORIAS = [
   ['Novidades e números', 'Cards com as mudanças legais recentes; contadores animados e estimativa de movimento na home.', '#inicio'],
   ['Mapa sob demanda', 'O mapa do Google só carrega quando você clica — sem rastreador antes disso.', '#contato'],
   ['Tema automático e animações', 'Segue o tema claro/escuro do sistema; blocos surgem ao rolar, respeitando “reduzir movimento”.', '#inicio'],
+  ['Movimento e efeitos', 'Transição entre telas, anéis do logo que se desenham, busca que “digita” exemplos, cartões que inclinam com o mouse, ondulação nos botões, confete no protocolo e barra de leitura.', '#inicio'],
   ['Lembretes no calendário', 'Arquivo .ics do agendamento (com alarme 2 h antes) e das datas do casamento: entrada da habilitação e cerimônia.', '#casamento'],
 ];
 
@@ -586,7 +587,7 @@ const TOUR = [
 
 /* ------------------------------------------------------------------ pedidos (agendamentos, certidões, orçamentos) */
 function protocolo(prefixo) { const d = new Date(); return `${prefixo}-${iso(d).replace(/-/g, '')}-${String(Math.floor(1000 + Math.random() * 9000))}`; }
-function registrarPedido(p) { const l = guarda.get('pedidos', []); l.unshift({ ...p, quando: new Date().toISOString() }); guarda.set('pedidos', l.slice(0, 30)); desenharPedidos(); }
+function registrarPedido(p) { confete(); const l = guarda.get('pedidos', []); l.unshift({ ...p, quando: new Date().toISOString() }); guarda.set('pedidos', l.slice(0, 30)); desenharPedidos(); }
 function desenharPedidos() {
   const l = guarda.get('pedidos', []);
   $('#n-pedidos').textContent = l.length ? `(${l.length})` : '';
@@ -864,7 +865,7 @@ const VISTAS = ['servicos', 'casamento', 'certidoes', 'verificar', 'atendimento'
 const ALIAS = { espaco: 'casamento', galeria: 'casamento', topo: 'inicio', conteudo: 'inicio', feriados: 'contato', avaliacao: 'contato', transparencia: 'contato' };
 const secoes = $$('main > section');
 function vistaDoHash() { const id = location.hash.slice(1); return VISTAS.includes(ALIAS[id] || id) ? (ALIAS[id] || id) : 'inicio'; }
-function mostrarVista() {
+function trocarVista() {
   const v = vistaDoHash(), alvo = location.hash.slice(1);
   secoes.forEach((s) => { s.hidden = v === 'inicio' ? !['inicio', 'atalhos'].includes(s.id) : s.id !== v; });
   $$('.menu a').forEach((a) => { a.getAttribute('href') === '#' + v ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'); });
@@ -874,6 +875,9 @@ function mostrarVista() {
   if (el) el.scrollIntoView({ block: 'start' }); else scrollTo({ top: 0 });
   topo.classList.remove('aberto'); $('#bt-menu').setAttribute('aria-expanded', 'false');
 }
+const CALMO = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let vistaPronta = false;
+function mostrarVista() { if (vistaPronta && !CALMO && document.startViewTransition) document.startViewTransition(trocarVista).ready.catch(() => {}); else trocarVista(); vistaPronta = true; }
 addEventListener('hashchange', mostrarVista);
 document.addEventListener('keydown', (e) => { if (e.key === '/' && !/input|textarea|select/i.test(e.target.tagName)) { e.preventDefault(); location.hash = '#inicio'; setTimeout(() => $('#busca-hero').focus(), 60); } });
 document.documentElement.style.scrollBehavior = 'auto'; mostrarVista();
@@ -936,6 +940,40 @@ $$('[data-idioma]').forEach((b) => b.addEventListener('click', () => {
   });
 })();
 
+/* ------------------------------------------------------------------ movimento e efeitos (desligados com “reduzir movimento”) */
+function confete() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cx = document.body.appendChild(Object.assign(document.createElement('div'), { className: 'confete' }));
+  for (let i = 0; i < 46; i++) {
+    const p = cx.appendChild(document.createElement('i')); p.style.background = ['#D2AE3C', '#F0D98A', '#132A4D', '#fff', '#2E8B57'][i % 5]; p.style.left = 50 + (Math.random() - .5) * 30 + '%';
+    p.animate([{ transform: 'translate(0,0) rotate(0)', opacity: 1 }, { transform: `translate(${(Math.random() - .5) * 70}vw, ${50 + Math.random() * 35}vh) rotate(${Math.random() * 900 - 450}deg)`, opacity: 0 }], { duration: 1400 + Math.random() * 900, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' });
+  }
+  setTimeout(() => cx.remove(), 2500);
+}
+(function efeitos() {
+  // barra de leitura e cabeçalho que “descola” ao rolar
+  const barra = document.body.appendChild(Object.assign(document.createElement('div'), { className: 'leitura' }));
+  addEventListener('scroll', () => { const max = document.documentElement.scrollHeight - innerHeight; barra.style.transform = `scaleX(${max > 0 ? scrollY / max : 0})`; topo.classList.toggle('compacto', scrollY > 40); }, { passive: true });
+  if (CALMO) return;
+  // anéis do logo que se desenham no hero
+  $('#inicio').insertAdjacentHTML('beforeend', '<svg class="hero__aneis" viewBox="0 0 92 80" aria-hidden="true"><circle cx="33" cy="40" r="26" pathLength="1"/><circle cx="59" cy="40" r="26" pathLength="1"/></svg>');
+  // a busca “digita” exemplos enquanto está vazia e sem foco
+  const campo = $('#busca-hero'), ex = ['casar', 'comprar um imóvel', 'procuração', '2ª via de certidão', 'divórcio', 'herança']; let k = 0, n = 0, apagando = false;
+  setInterval(() => { if (document.activeElement === campo || campo.value) return; const p = ex[k]; n += apagando ? -1 : 1; campo.placeholder = 'O que você precisa?  ' + p.slice(0, n) + '▏'; if (n >= p.length + 8) apagando = true; if (n <= 0) { apagando = false; k = (k + 1) % ex.length; } }, 110);
+  // cartões inclinam e ganham brilho sob o mouse (só com ponteiro fino)
+  if (matchMedia('(hover: hover) and (pointer: fine)').matches) document.addEventListener('pointermove', (e) => {
+    const el = e.target.closest?.('.card--clic, .atalho, .numeros div'); if (!el) return;
+    const r = el.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    el.style.setProperty('--rx', ((.5 - y) * 6).toFixed(2) + 'deg'); el.style.setProperty('--ry', ((x - .5) * 8).toFixed(2) + 'deg'); el.style.setProperty('--mx', Math.round(x * 100) + '%'); el.style.setProperty('--my', Math.round(y * 100) + '%');
+  }, { passive: true });
+  // ondulação no toque dos botões
+  document.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest?.('.bt, .hora, .agenda__dia:not(:disabled), .chip'); if (!b) return;
+    const r = b.getBoundingClientRect(), o = document.createElement('span'); o.className = 'onda'; o.style.left = e.clientX - r.left + 'px'; o.style.top = e.clientY - r.top + 'px';
+    b.appendChild(o); o.addEventListener('animationend', () => o.remove());
+  }, { passive: true });
+})();
+
 /* ------------------------------------------------------------------ compartilhar (Web Share, com cópia como reserva) */
 document.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-compartilhar]'); if (!b) return;
@@ -953,7 +991,7 @@ $('#bt-instalar').addEventListener('click', async () => { if (!promptInstalar) r
 (function revelar() {
   const alvos = $$('.card, .painel, .atalho, .numeros div, #verificar .card');
   if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const io = new IntersectionObserver((es) => es.forEach((x) => { if (x.isIntersecting) { x.target.classList.add('ver'); io.unobserve(x.target); } }), { rootMargin: '0px 0px -8% 0px' });
+  const io = new IntersectionObserver((es) => es.forEach((x) => { if (!x.isIntersecting) return; const a = x.target; a.classList.add('ver'); io.unobserve(a); setTimeout(() => { a.classList.remove('revela', 'ver'); a.style.transitionDelay = ''; }, 900); }), { rootMargin: '0px 0px -8% 0px' });
   alvos.forEach((a, i) => { a.classList.add('revela'); a.style.transitionDelay = `${(i % 4) * 60}ms`; io.observe(a); });
 })();
 

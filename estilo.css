@@ -106,7 +106,7 @@ svg.cheio{fill:currentColor;stroke:none}
 @keyframes entra{from{transform:scale(1.14);opacity:.4}to{transform:scale(1);opacity:1}}
 /* |translate| ≤ (scale−1)/2 em toda parada: a borda da foto nunca entra no quadro */
 @keyframes passeio{0%{transform:scale(1) translate(0,0)}25%{transform:scale(1.12) translate(-3%,-1.5%)}50%{transform:scale(1.18) translate(2.5%,-3%)}75%{transform:scale(1.1) translate(3%,1%)}100%{transform:scale(1) translate(0,0)}}
-.hero::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(to right,rgb(13 31 58/.9),rgb(13 31 58/.68) 45%,rgb(13 31 58/.18))}
+.hero::after{content:"";position:absolute;inset:0;z-index:-2;background:linear-gradient(to right,rgb(13 31 58/.9),rgb(13 31 58/.68) 45%,rgb(13 31 58/.18))}
 @media(max-width:760px){.hero::after{background:linear-gradient(to bottom,rgb(13 31 58/.5),rgb(13 31 58/.72) 45%,rgb(13 31 58/.88))}}
 .hero h1,.hero p{text-shadow:0 1px 18px rgb(13 31 58/.55)}
 .hero__in{padding-block:clamp(3.5rem,9vw,6.5rem);max-width:44rem}
@@ -311,3 +311,28 @@ mark{background:var(--superficie-2);color:var(--ouro-texto);padding:0 .3rem;bord
 .revela{opacity:0;transform:translateY(14px);transition:opacity .55s ease,transform .55s ease}.revela.ver{opacity:1;transform:none}
 @media(prefers-reduced-motion:reduce){.revela{opacity:1;transform:none;transition:none}}
 .parcelas{display:flex;flex-wrap:wrap;gap:.4rem;margin:.6rem 0 0}.parcelas span{padding:.3rem .6rem;border-radius:var(--raio-full);background:var(--fundo-2);font-size:.8rem}
+
+/* movimento e efeitos */
+.leitura{position:fixed;inset:0 0 auto 0;height:3px;z-index:70;background:linear-gradient(90deg,var(--ouro),var(--ouro-claro));transform-origin:0 50%;transform:scaleX(0);pointer-events:none}
+.topo{transition:background var(--t),box-shadow var(--t);view-transition-name:topo}.topo.compacto{background:rgb(13 31 58/.86);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 8px 28px rgb(0 0 0/.28)}
+.confete{position:fixed;inset:0;z-index:90;pointer-events:none;overflow:hidden}.confete i{position:absolute;top:26%;width:9px;height:14px;border-radius:2px}
+.bt,.hora,.agenda__dia{position:relative;overflow:hidden}
+.onda{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:currentColor;opacity:.28;pointer-events:none;animation:onda .6s ease-out forwards}
+@keyframes onda{to{transform:scale(26);opacity:0}}
+@media(prefers-reduced-motion:no-preference){
+  ::view-transition-old(root){animation:vt-sai .2s ease both}::view-transition-new(root){animation:vt-entra .36s cubic-bezier(.22,.61,.36,1) both}
+  @keyframes vt-sai{to{opacity:0;transform:translateY(-10px)}}@keyframes vt-entra{from{opacity:0;transform:translateY(20px)}}
+  .hero__aneis{position:absolute;right:-3%;top:50%;z-index:-1;width:min(48vw,540px);height:auto;aspect-ratio:92/80;translate:0 -50%;fill:none;stroke:var(--ouro-claro);stroke-width:1;opacity:.62;pointer-events:none;animation:flutua 10s ease-in-out infinite}
+  .hero__aneis circle{stroke-dasharray:1;stroke-dashoffset:1;animation:desenha 2.6s .5s cubic-bezier(.22,.61,.36,1) forwards}.hero__aneis circle+circle{animation-delay:1.2s}
+  @keyframes desenha{to{stroke-dashoffset:0}}@keyframes flutua{50%{transform:translateY(-14px) rotate(2deg)}}
+  .hero h1 em{background:linear-gradient(100deg,var(--ouro-claro) 25%,#fff 45%,var(--ouro-claro) 65%) 0 0/230% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;animation:brilho 6s linear infinite}
+  @keyframes brilho{to{background-position:-230% 0}}
+  .card--clic:hover,.atalho:hover,.numeros div:hover{transform:perspective(700px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(-3px);background-image:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgb(210 174 60/.18),transparent 60%)}
+  .numeros div{transition:transform var(--t),box-shadow var(--t)}
+  .atalho:hover .atalho__i{animation:pula .55s}@keyframes pula{40%{transform:translateY(-5px) rotate(-8deg)}70%{transform:translateY(1px) rotate(3deg)}}
+  .dock .w{animation:pulso 2.8s ease-out infinite}@keyframes pulso{0%{box-shadow:0 0 0 0 rgb(37 211 102/.55)}70%,100%{box-shadow:0 0 0 16px rgb(37 211 102/0)}}
+  .passos li.atual{animation:acende .5s ease}@keyframes acende{from{opacity:.4}}
+  .trilha-etapas li.feito::before,.linha-tempo li.feito::before{animation:carimbo .45s cubic-bezier(.3,1.6,.5,1)}@keyframes carimbo{from{transform:scale(0)}}
+  .resumo{animation:sobe .45s cubic-bezier(.22,.61,.36,1)}@keyframes sobe{from{opacity:0;transform:translateY(14px)}}
+  details.faq[open] p{animation:sobe .3s ease}
+}
