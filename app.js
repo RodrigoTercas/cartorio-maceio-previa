@@ -1298,6 +1298,29 @@ function prepararImagem(img, [sx, sy, sw, sh], graus = 0, realce = true) {
   for (let i = 0; i < p.length; i += 4) p[i] = p[i + 1] = p[i + 2] = Math.max(0, Math.min(255, (p[i] - lo) * ganho));
   g.putImageData(d, 0, 0); return cv;
 }
+// Regiões [x, y, largura, altura] (em pontos, origem no alto à esquerda) das imagens desenhadas numa página de PDF, de cima para baixo.
+// Acompanha a matriz de transformação pela lista de operadores do pdf.js. Ficam de fora as pequenas (logotipos) e as quadradas (QR Code).
+function imagensDaPagina(ops, vp) {
+  const O = pdfjsLib.OPS, pilha = [], regioes = [];
+  const mult = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3], m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+  let ctm = [1, 0, 0, 1, 0, 0];
+  ops.fnArray.forEach((fn, i) => {
+    const a = ops.argsArray[i];
+    if (fn === O.save) pilha.push(ctm);
+    else if (fn === O.restore) ctm = pilha.pop() || ctm;
+    else if (fn === O.transform) ctm = mult(ctm, a);
+    else if (fn === O.paintFormXObjectBegin) { pilha.push(ctm); if (a && a[0]) ctm = mult(ctm, a[0]); }
+    else if (fn === O.paintFormXObjectEnd) ctm = pilha.pop() || ctm;
+    else if (fn === O.paintImageXObject || fn === O.paintInlineImageXObject || fn === O.paintJpegXObject) {
+      // a imagem ocupa o quadrado unitário transformado pela matriz corrente
+      const cantos = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => vp.convertToViewportPoint(ctm[0] * x + ctm[2] * y + ctm[4], ctm[1] * x + ctm[3] * y + ctm[5]));
+      const xs = cantos.map((c) => c[0]), ys = cantos.map((c) => c[1]), x = Math.max(0, Math.min(...xs)), y = Math.max(0, Math.min(...ys));
+      const w = Math.min(vp.width, Math.max(...xs)) - x, h = Math.min(vp.height, Math.max(...ys)) - y;
+      if (w >= 80 && h >= 80 && Math.abs(w / h - 1) > .1) regioes.push([x, y, w, h]);
+    }
+  });
+  return regioes.sort((p, q) => p[1] - q[1] || p[0] - q[0]).slice(0, 6);
+}
 // Reconhecimento de texto no próprio aparelho: o arquivo (foto ou PDF) não é enviado nem guardado.
 // Tesseract.js e, para PDF, pdf.js são baixados só quando a pessoa pede. `aviso` recebe o andamento.
 // Devolve o que lerDocumento() extraiu, mais `texto` (o que o leitor enxergou, para conferência).
@@ -1314,11 +1337,15 @@ async function lerFoto(arq, aviso) {
     let embutido = '';
     for (const pag of pags) embutido += (await pag.getTextContent()).items.map((t) => t.str + (t.hasEOL ? '\n' : ' ')).join('') + '\n';
     const r = lerDocumento(embutido); if (r.nome || r.cpf) return { ...r, texto: embutido };
-    // PDF digitalizado (ou CNH digital, em que os dados estão numa imagem): desenha cada página em alta resolução
+    // PDF digitalizado ou CNH digital: os dados estão em imagens. Na CNH digital elas ocupam só um canto da página A4, então desenhar a
+    // página inteira deixa as letras minúsculas; em vez disso, desenha em alta resolução só a região de cada imagem embutida.
     for (const pag of pags) {
-      const base = pag.getViewport({ scale: 1 }), vp = pag.getViewport({ scale: Math.min(4, 2800 / Math.max(base.width, base.height)) });
-      const cv = Object.assign(document.createElement('canvas'), { width: Math.round(vp.width), height: Math.round(vp.height) });
-      await pag.render({ canvasContext: cv.getContext('2d'), viewport: vp, intent: 'print' }).promise; imgs.push(cv);   // 'print' não depende de requestAnimationFrame: não trava com a aba em segundo plano
+      const base = pag.getViewport({ scale: 1 }), regioes = imagensDaPagina(await pag.getOperatorList(), base);
+      for (const [x, y, w, h] of regioes.length ? regioes : [[0, 0, base.width, base.height]]) {
+        const escala = Math.min(12, 2800 / Math.max(w, h)), vp = pag.getViewport({ scale: escala, offsetX: -x * escala, offsetY: -y * escala });
+        const cv = Object.assign(document.createElement('canvas'), { width: Math.round(w * escala), height: Math.round(h * escala) });
+        await pag.render({ canvasContext: cv.getContext('2d'), viewport: vp, intent: 'print' }).promise; imgs.push(cv);   // 'print' não depende de requestAnimationFrame: não trava com a aba em segundo plano
+      }
     }
   } else imgs.push(await createImageBitmap(arq));
   if (!window.Tesseract) await script('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
@@ -1331,7 +1358,8 @@ async function lerFoto(arq, aviso) {
       if (achado.nome && achado.cpf && achado.mae) break;      // já está completo
       passo = n++ ? ` (tentativa ${n})` : '';
       await worker.setParameters({ tessedit_pageseg_mode: modo });
-      let t = ''; for (let i = 0; i < imgs.length; i++) t += (await worker.recognize(prepararImagem(imgs[i], caixas[i], graus, realce))).data.text + '\n';
+      let t = '';
+      for (let i = 0; i < imgs.length; i++) { t += (await worker.recognize(prepararImagem(imgs[i], caixas[i], graus, realce))).data.text + '\n'; const p = lerDocumento(t); if (p.nome && p.cpf && p.pai && p.mae) break; }   // a primeira imagem já trouxe tudo: não lê as demais
       const r = lerDocumento(t); if (Object.keys(r).length > campos) { campos = Object.keys(r).length; texto = t; }
       const nome = [r.nome, achado.nome].filter(Boolean).sort((x, y) => y.length - x.length)[0];   // entre leituras, o nome mais completo
       achado = { ...r, ...achado }; if (nome) achado.nome = nome;
@@ -1349,10 +1377,20 @@ const resultadoLeitura = (el, msg, texto) => { el.innerHTML = `${esc(msg)} <deta
 // Extrai nome, CPF, nascimento, filiação e naturalidade do texto reconhecido de um RG ou de uma CNH.
 // É heurístico (rótulos e posição das linhas, tolerando erros comuns do reconhecimento): o resultado vai destacado, para a pessoa conferir.
 function lerDocumento(texto, palpite = false) {
-  const ROTULO = /N[O0]ME|FILIA|IDENTIDADE|EMISS|NASCIMENTO|ENDERE|BAIRRO|PROFISS|SOBREN|V[AÁ]LID|HABILITA|REP[UÚ]BLICA|REGISTRO|NATURALIDADE|CPF|\bDATA\b|ASSINATURA|CARTEIRA|MINIST|DEPARTAMENTO|SECRETARIA|NACIONAL|ESTADO|INSTITUTO|TERRIT|SEGURAN|P[UÚ]BLICA|TR[AÂ]NSITO|INFRAESTRUTURA|BRASIL|DETRAN|FEDERA|POL[IÍ]CIA|PERMISS|CATEGORIA|OBSERVA|\bLOCAL\b|\bDOC\b|\b[OÓ]RG|DIRETOR|\bLEI\b|CIVIL|DIGITAL|PORTADOR/i;
+  const ROTULO = /N[O0]ME|FILIA|IDENTIDADE|EMISS|NASCIMENTO|ENDERE|BAIRRO|PROFISS|SOBREN|SURNAME|APELLIDO|LICEN[SC]|DRIVER|CONDUC|V[AÁ]LID|HABILITA|REP[UÚ]BLICA|REGISTRO|NATURALIDADE|CPF|\bDATA\b|ASSINATURA|CARTEIRA|MINIST|DEPARTAMENTO|SECRETARIA|NACIONAL|ESTADO|INSTITUTO|TERRIT|SEGURAN|P[UÚ]BLICA|TR[AÂ]NSITO|INFRAESTRUTURA|BRASIL|DETRAN|FEDERA|POL[IÍ]CIA|PERMISS|CATEGORIA|OBSERVA|\bLOCAL\b|\bDOC\b|\b[OÓ]RG|DIRETOR|\bLEI\b|CIVIL|DIGITAL|PORTADOR/i;
   const linhas = texto.split(/\n/).map((l) => l.trim()).filter(Boolean), r = {};
-  // uma linha vale como nome se, tirado o ruído, sobram ao menos duas palavras de letras e ela não é um rótulo do documento
-  const nomeDe = (l) => { const n = (l || '').replace(/[^A-Za-zÀ-ÿ' ]/g, ' ').replace(/(^| )\S(?= |$)/g, ' ').replace(/\s+/g, ' ').trim(); return /^(\S{2,} )+\S{2,}$/.test(n) && !ROTULO.test(n) ? n : ''; };
+  // Uma linha vale como nome se, tirado o ruído, sobram palavras de letras com cara de nome e ela não é um rótulo do documento.
+  // A foto e as molduras ao lado deixam pedaços grudados (“eo O PEDRO…”, “- H CA MARIA…”): numa linha em maiúsculas, saem os
+  // pedaços em minúsculas e os de até duas letras no começo; e “hd oa AA EE” não passa, porque nome tem palavra de três letras ou mais.
+  const nomeDe = (l) => {
+    let p = (l || '').replace(/[^A-Za-zÀ-ÿ' ]/g, ' ').split(/\s+/).filter((x) => x.length > 1 || x === 'E');
+    const maiusc = p.filter((x) => x === x.toUpperCase());
+    if (maiusc.join('').length >= p.join('').length * .6) p = maiusc;
+    while (p.length > 2 && p[0].length <= 2 && !/^(DA|DE|DO)$/.test(p[0])) p.shift();
+    while (p.length && p[p.length - 1].length === 1) p.pop();
+    const n = p.join(' '), longas = p.filter((x) => x.length >= 3).length;
+    return p.length >= 2 && p.length <= 8 && (longas >= 2 || (longas === 1 && n.length >= 8 && p === maiusc)) && !ROTULO.test(n) ? n : '';
+  };
   const iNome = linhas.findIndex((l) => /\bN[O0]M[EF]\b/i.test(l) && !/SOCIAL|FILIA/i.test(l));
   if (iNome >= 0) {
     // o valor costuma vir na linha de baixo; o resto da própria linha do rótulo só vale com dois-pontos ou três palavras (rótulo mal lido deixa sobras de duas)
@@ -1365,7 +1403,8 @@ function lerDocumento(texto, palpite = false) {
   const iFil = linhas.findIndex((l) => /FILIA\S{0,3}O\b/i.test(l) || /^\W*F\S{2,7}[ÇC][ÃA]O?\W*$/i.test(l));
   if (iFil >= 0) {
     const nomes = [nomeDe(linhas[iFil].replace(/^.*?FILIA\S{0,3}O\b[:\s]*/i, ''))].filter(Boolean);
-    for (const l of linhas.slice(iFil + 1, iFil + 6)) { const n = nomeDe(l); if (n) nomes.push(n); else if (nomes.length || ROTULO.test(l)) break; if (nomes.length === 2) break; }
+    // até dez linhas adiante, pulando o ruído entre os dois nomes; para em dois nomes ou no próximo rótulo do documento
+    for (const l of linhas.slice(iFil + 1, iFil + 11)) { const n = nomeDe(l); if (n) nomes.push(n); else if (ROTULO.test(l)) break; if (nomes.length === 2) break; }
     if (nomes.length === 1) r.mae = nomes[0];           // um só nome na filiação costuma ser o da mãe
     else if (nomes.length) { r.pai = nomes[0]; r.mae = nomes[1]; }
   }
