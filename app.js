@@ -34,6 +34,49 @@ function baixarICS(nome, eventos) {
   a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 const ENDERECO = 'R. Eng. Roberto Gonçalves Menezes, 63 — Centro, Maceió/AL, 57020-680';
+// Gerador mínimo de PDF (A4, Helvetica e Helvetica-Bold, codificação WinAnsi): texto, linhas, caixas e parágrafos.
+// Coordenadas em pontos a partir do canto superior esquerdo. Sem biblioteca: o arquivo é montado aqui e nunca sai do aparelho.
+function criarPDF() {
+  const pags = []; let ops = [];
+  const WIN = { '–': '\x96', '—': '\x97', '“': '\x93', '”': '\x94', '‘': '\x91', '’': '\x92', '•': '\x95', '…': '\x85' };
+  const lat = (t) => String(t).replace(/[^\x20-\x7E\xA0-\xFF]/g, (ch) => WIN[ch] || '?').replace(/[\\()]/g, '\\$&');
+  // larguras da Helvetica (AFM) para os caracteres 32–126; acentuadas usam a da letra-base; negrito ≈ 6% mais largo
+  const W = '278 278 355 556 556 889 667 191 333 333 389 584 278 333 278 278 556 556 556 556 556 556 556 556 556 556 278 278 584 584 584 556 1015 667 667 722 722 667 611 778 722 278 500 667 556 833 722 778 667 778 722 667 611 722 667 944 667 667 611 278 278 278 469 556 333 556 556 500 556 556 278 556 556 222 222 500 222 833 556 556 556 556 333 500 278 556 500 722 500 500 500 334 260 334 584'.split(' ').map(Number);
+  const EXTRA = { '—': 1000, '–': 556, '·': 278, 'ª': 370, 'º': 365 };
+  const larg = (t, tam, neg) => [...String(t).normalize('NFD').replace(/[̀-ͯ]/g, '')].reduce((s, ch) => s + (EXTRA[ch] || W[ch.charCodeAt(0) - 32] || 556), 0) * tam / 1000 * (neg ? 1.06 : 1);
+  const n = (v) => +v.toFixed(2);
+  const api = {
+    larg,
+    pagina() { ops = []; pags.push(ops); return api; },
+    texto(t, x, y, tam = 10, neg = false, alinh = 'e') {
+      const w = larg(t, tam, neg), px = alinh === 'c' ? x - w / 2 : alinh === 'd' ? x - w : x;
+      ops.push(`BT /${neg ? 'F2' : 'F1'} ${tam} Tf ${n(px)} ${n(842 - y)} Td (${lat(t)}) Tj ET`); return w;
+    },
+    // texto que encolhe a fonte até caber na largura
+    ajustado(t, x, y, max, tam = 10) { while (tam > 6 && larg(t, tam) > max) tam -= .5; return api.texto(t, x, y, tam); },
+    linha(x1, y1, x2, y2, esp = .6) { ops.push(`${esp} w ${n(x1)} ${n(842 - y1)} m ${n(x2)} ${n(842 - y2)} l S`); },
+    caixa(x, y, w, h, esp = .8) { ops.push(`${esp} w ${n(x)} ${n(842 - y - h)} ${n(w)} ${n(h)} re S`); },
+    paragrafo(t, x, y, max, tam = 9, neg = false) {
+      let lin = '';
+      t.split(/\s+/).forEach((p) => { if (lin && larg(lin + ' ' + p, tam, neg) > max) { api.texto(lin, x, y, tam, neg); y += tam * 1.32; lin = p; } else lin = lin ? lin + ' ' + p : p; });
+      if (lin) { api.texto(lin, x, y, tam, neg); y += tam * 1.32; }
+      return y;
+    },
+    blob() {
+      const objs = ['<< /Type /Catalog /Pages 2 0 R >>', '', '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>', '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>'];
+      const kids = [];
+      pags.forEach((o) => { const c = o.join('\n'), num = objs.length + 1; kids.push(`${num} 0 R`);
+        objs.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${num + 1} 0 R >>`, `<< /Length ${c.length} >>\nstream\n${c}\nendstream`); });
+      objs[1] = `<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${kids.length} >>`;
+      let pdf = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n'; const pos = [];
+      objs.forEach((o, i) => { pos.push(pdf.length); pdf += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+      const xref = pdf.length;
+      pdf += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${pos.map((p) => String(p).padStart(10, '0') + ' 00000 n \n').join('')}trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+      return new Blob([Uint8Array.from(pdf, (ch) => ch.charCodeAt(0))], { type: 'application/pdf' });   // 1 caractere = 1 byte (tudo ≤ 0xFF)
+    },
+  };
+  return api;
+}
 
 /* ------------------------------------------------------------------ dados
    Conteúdo extraído do site atual; [*] marca o que foi atualizado ou incluído. */
@@ -176,6 +219,7 @@ const MELHORIAS = [
   ['Mapa sob demanda', 'O mapa do Google só carrega quando você clica — sem rastreador antes disso.', '#contato'],
   ['Tema automático e animações', 'Segue o tema claro/escuro do sistema; blocos surgem ao rolar, respeitando “reduzir movimento”.', '#inicio'],
   ['Movimento e efeitos', 'Transição entre telas, busca que “digita” exemplos, cartões que inclinam com o mouse, ondulação nos botões, confete no protocolo e barra de leitura.', '#inicio'],
+  ['Formulário de habilitação on-line', 'Os mesmos campos do formulário do balcão, preenchidos no site (CEP e pré-cadastro ajudam); o PDF de duas páginas é montado no próprio aparelho, sem enviar nada.', '#hab'],
   ['Lembretes no calendário', 'Arquivo .ics do agendamento (com alarme 2 h antes) e das datas do casamento: entrada da habilitação e cerimônia.', '#casamento'],
 ];
 
@@ -473,7 +517,7 @@ const simuladorCas = (function simulador() {
       <div class="acoes"><span style="display:flex;gap:.5rem;flex-wrap:wrap">
         <a class="bt bt--whats" id="cas-enviar" target="_blank" rel="noopener">${ic('whatsapp')} Enviar roteiro</a>
         <button class="bt bt--linha" type="button" onclick="print()">${ic('impressora')} Imprimir</button>
-        <a class="bt bt--linha" href="assets/docs/formulario-habilitacao-casamento.pdf" target="_blank" rel="noopener">${ic('arquivo')} Formulário (PDF)</a>
+        <a class="bt bt--linha" href="#hab">${ic('arquivo')} Preencher o formulário</a>
         ${eventos.length ? `<button class="bt bt--linha" type="button" id="cas-ics">${ic('agenda')} Lembretes no calendário</button>` : ''}
         <button class="bt bt--linha" type="button" id="cas-compartilhar" data-compartilhar="Nosso roteiro de casamento" data-texto="">Compartilhar</button></span>
         <button class="bt bt--ouro" type="button" data-agendar="casamento">${ic('agenda')} Agendar a habilitação</button></div>
@@ -862,7 +906,7 @@ const custas = (() => {
    A página continua sendo uma só — o roteador apenas esconde as outras seções.
    Hash na URL: Voltar/Avançar do navegador funcionam e cada vista tem link próprio. */
 const VISTAS = ['servicos', 'casamento', 'certidoes', 'verificar', 'atendimento', 'links', 'privacidade', 'enotariado', 'duvidas', 'contato', 'ouvidoria', 'glossario', 'empresas', 'estrangeiros'];
-const ALIAS = { espaco: 'casamento', galeria: 'casamento', topo: 'inicio', conteudo: 'inicio', feriados: 'contato', avaliacao: 'contato', transparencia: 'contato' };
+const ALIAS = { espaco: 'casamento', galeria: 'casamento', hab: 'casamento', topo: 'inicio', conteudo: 'inicio', feriados: 'contato', avaliacao: 'contato', transparencia: 'contato' };
 const secoes = $$('main > section');
 function vistaDoHash() { const id = location.hash.slice(1); return VISTAS.includes(ALIAS[id] || id) ? (ALIAS[id] || id) : 'inicio'; }
 function trocarVista() {
@@ -1035,9 +1079,139 @@ $('#form-pergunta').addEventListener('submit', (e) => {
   toast(`Pergunta ${prot} salva em “Meus pedidos”`); f.reset();
 });
 
+/* ------------------------------------------------------------------ formulário de habilitação: preenche no site e gera o PDF */
+(function habilitacao() {
+  const f = $('#form-hab'), det = $('#hab');
+  const EC = ['Solteiro(a)', 'Divorciado(a)', 'Viúvo(a)'];
+  const REG = { parcial: 'Comunhão parcial', universal: 'Comunhão universal', separacao: 'Separação de bens', aquestos: 'Participação final nos aquestos' };
+  const MODS = [['Casamento civil', 'após a habilitação, com dia, local e hora designados para a celebração.'],
+    ['Casamento religioso', 'certificado de habilitação para a autoridade religiosa e registro posterior do termo da celebração.'],
+    ['Registro de ata', 'registro do casamento religioso já celebrado, conforme termo anexo, para produzir efeitos civis.'],
+    ['Conversão de união estável em casamento', 'comprovada a união e certificada a habilitação, sem ato de celebração.']];
+  const CPF = 'inputmode="numeric" maxlength="14" placeholder="000.000.000-00"';
+  const c = (n, rot, extra = '') => `<div class="campo"><label for="hb-${n}">${rot}</label><input id="hb-${n}" name="${n}" ${extra}></div>`;
+  const s = (n, rot, ops) => `<div class="campo"><label for="hb-${n}">${rot}</label><select id="hb-${n}" name="${n}"><option value="">—</option>${ops.map((o) => `<option>${o}</option>`).join('')}</select></div>`;
+  const genitor = (p, k, rot) => `<div class="linha2">${c(`${p}_${k}`, `Nome ${rot}`)}${s(`${p}_${k}_sit`, 'Situação', ['Vivo(a)', 'Falecido(a)'])}</div>
+    <div class="linha3">${c(`${p}_${k}_data`, 'Nascimento (ou falecimento)', 'placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10"')}${c(`${p}_${k}_cid`, 'Cidade')}${c(`${p}_${k}_uf`, 'UF', 'maxlength="2"')}</div>`;
+  const pessoa = (p, n) => `<fieldset class="hab-bloco"><legend class="legenda">Interessado(a) ${n}</legend>
+    <div class="linha2">${c(p + '_nome', 'Nome completo', 'required autocomplete="off"')}${c(p + '_cpf', 'CPF', CPF)}</div>
+    <div class="linha3">${s(p + '_ec', 'Estado civil', EC)}${c(p + '_nac', 'Nacionalidade')}${c(p + '_prof', 'Profissão')}</div>
+    <div class="linha3">${c(p + '_fone', 'Telefone', 'type="tel" inputmode="tel"')}${c(p + '_cep', 'CEP', 'inputmode="numeric" maxlength="9" placeholder="57000-000"')}${c(p + '_bairro', 'Bairro')}</div>
+    <div class="linha3">${c(p + '_end', 'Endereço (rua)')}${c(p + '_num', 'Número')}${c(p + '_apto', 'Apto./complemento')}</div>
+    <div class="linha2">${c(p + '_cidade', 'Cidade')}${c(p + '_uf', 'UF', 'maxlength="2"')}</div>
+    ${genitor(p, 'pai', 'do pai')}${genitor(p, 'mae', 'da mãe')}</fieldset>`;
+  const testemunha = (p, n) => `<fieldset class="hab-bloco"><legend class="legenda">Testemunha ${n} <span class="dica">(pode ficar para o balcão)</span></legend>
+    <div class="linha2">${c(p + '_nome', 'Nome completo')}${c(p + '_cpf', 'CPF', CPF)}</div>
+    <div class="linha3">${c(p + '_nat', 'Natural de')}${s(p + '_ec', 'Estado civil', EC.concat('Casado(a)'))}${c(p + '_prof', 'Profissão')}</div>
+    <div class="linha2">${c(p + '_fone', 'Telefone', 'type="tel" inputmode="tel"')}${c(p + '_end', 'Endereço completo')}</div></fieldset>`;
+  $('#hab-campos').innerHTML = pessoa('i1', '01') + pessoa('i2', '02') + `<fieldset class="hab-bloco"><legend class="legenda">Casamento</legend>
+    <div class="linha2">${s('modalidade', 'Modalidade', MODS.map((m) => m[0]))}${s('regime', 'Regime de bens', Object.values(REG))}</div>
+    <div class="linha3">${c('pacto_livro', 'Pacto antenupcial — livro')}${c('pacto_fl', 'Folha')}${c('pacto_cart', 'Cartório do pacto')}</div>
+    <div class="linha2">${c('nome1', 'Nome do(a) interessado(a) 01 após o casamento')}${c('nome2', 'Nome do(a) interessado(a) 02 após o casamento')}</div></fieldset>` + testemunha('t1', '01') + testemunha('t2', '02');
+
+  // o que já foi digitado volta ao reabrir; regime e modalidade vêm do simulador, se houver
+  const salvar = () => guarda.set('hab', Object.fromEntries(new FormData(f)));
+  const salvo = guarda.get('hab', {}), trilha = guarda.get('trilha', null);
+  Object.entries(salvo).forEach(([k, v]) => { if (f.elements[k]) f.elements[k].value = v; });
+  if (trilha && !salvo.regime) { f.elements.regime.value = REG[trilha.x.regime]; f.elements.modalidade.value = trilha.x.local === 'religioso' ? 'Casamento religioso' : 'Casamento civil'; }
+  const abrirPeloHash = () => { if (location.hash === '#hab') det.open = true; };
+  addEventListener('hashchange', abrirPeloHash); abrirPeloHash();
+
+  f.addEventListener('input', async (e) => {
+    const el = e.target, n = el.name || '', d = el.value.replace(/\D/g, '');
+    if (n.endsWith('_cpf')) { el.value = d.slice(0, 11).replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2'); if (d.length >= 11 && !cpfValido(d)) el.dataset.regra = '1'; else delete el.dataset.regra; el.setAttribute('aria-invalid', !!el.dataset.regra); }
+    if (n.endsWith('_data')) el.value = d.slice(0, 8).replace(/(\d{2})(\d)/, '$1/$2').replace(/(\d{2})(\d)/, '$1/$2');
+    if (n.endsWith('_uf')) el.value = el.value.toUpperCase().replace(/[^A-Z]/g, '');
+    if (n.endsWith('_cep')) el.value = d.slice(0, 8).replace(/(\d{5})(\d)/, '$1-$2');
+    salvar();
+    if (n.endsWith('_cep') && d.length === 8) try {
+      const r = await (await fetch(`https://viacep.com.br/ws/${d}/json/`)).json(); if (r.erro) return toast('CEP não encontrado');
+      const p = n.slice(0, 2); f.elements[p + '_end'].value = r.logradouro || ''; f.elements[p + '_bairro'].value = r.bairro || ''; f.elements[p + '_cidade'].value = r.localidade; f.elements[p + '_uf'].value = r.uf;
+      salvar(); toast('Endereço preenchido pelo CEP');
+    } catch (_) { toast('Sem conexão com o ViaCEP'); }
+  });
+  f.addEventListener('change', salvar);
+  $('#hab-pre').addEventListener('click', () => {
+    const ps = guarda.get('pre', []).filter((p) => p.nome); if (!ps.length) return toast('Pré-cadastro vazio — ele fica na aba “Pré-cadastro” do Atendimento');
+    ps.slice(0, 2).forEach((p, i) => { const [cid, uf] = (p.cidade || '').split('/');
+      Object.entries({ nome: p.nome, cpf: p.cpf, ec: EC.includes(p.ec) ? p.ec : '', prof: p.prof, nac: p.nac, cep: p.cep, end: p.end, bairro: p.bairro, cidade: cid, uf }).forEach(([k, v]) => { if (v) f.elements[`i${i + 1}_${k}`].value = v; }); });
+    salvar(); toast(`${Math.min(2, ps.length)} pessoa(s) trazida(s) do pré-cadastro`);
+  });
+  $('#hab-limpar').addEventListener('click', () => { if (!confirm('Apagar o que foi preenchido neste formulário?')) return; f.reset(); guarda.set('hab', {}); $('#hab-saida').innerHTML = ''; });
+
+  function gerar(d) {
+    const pdf = criarPDF(), M = 40, L = 515, X = M + 8, R = L - 16;
+    // rótulo em negrito + valor sobre uma linha (em branco, fica a linha para preencher à mão)
+    const campo = (rot, val, x, y, w) => { const lw = pdf.texto(rot, x, y, 8.5, true); pdf.linha(x + lw + 3, y + 2, x + w, y + 2, .4); if (val) pdf.ajustado(String(val), x + lw + 6, y, w - lw - 8, 10); };
+    const marca = (rot, on, x, y, neg = false) => { pdf.caixa(x, y - 8, 9, 9, .7); if (on) { pdf.linha(x + 1.5, y - 6.5, x + 7.5, y - .5, 1.2); pdf.linha(x + 7.5, y - 6.5, x + 1.5, y - .5, 1.2); } return x + 13 + pdf.texto(rot, x + 13, y, 9, neg) + 12; };
+    const rodape = () => { pdf.linha(M, 800, M + L, 800, .4); pdf.texto('7ª Circunscrição — Casamento e Notas de Maceió · Registro Civil das Pessoas Naturais e Tabelionato de Notas', 297.5, 812, 7.5, true, 'c'); pdf.texto(`${ENDERECO} · (82) 99381-2394`, 297.5, 822, 7.5, false, 'c'); };
+    const interessado = (p, num, y) => {
+      const v = (k) => d[`${p}_${k}`] || '';
+      pdf.caixa(M, y, L, 194, 1.2);
+      let x = X + pdf.texto(`INTERESSADO(A) ${num}`, X, y + 16, 10, true) + 14;
+      EC.forEach((e) => { x = marca(e, v('ec') === e, x, y + 16); });
+      campo('Nacionalidade:', v('nac'), x, y + 16, X + R - x);
+      let yy = y + 38;
+      campo('Nome:', v('nome'), X, yy, R); yy += 20;
+      campo('Endereço:', v('end'), X, yy, 330); campo('nº', v('num'), X + 338, yy, 70); campo('Apto.:', v('apto'), X + 416, yy, R - 416); yy += 20;
+      campo('Bairro:', v('bairro'), X, yy, 190); campo('CEP:', v('cep'), X + 198, yy, 100); campo('Cidade:', v('cidade'), X + 306, yy, 140); campo('UF:', v('uf'), X + 454, yy, R - 454); yy += 20;
+      campo('CPF:', v('cpf'), X, yy, 150); campo('Profissão:', v('prof'), X + 158, yy, 190); campo('Fone:', v('fone'), X + 356, yy, R - 356); yy += 22;
+      [['pai', 'Pai:'], ['mae', 'Mãe:']].forEach(([k, rot]) => {
+        campo(rot, v(k), X, yy, R); yy += 19;
+        const fal = v(k + '_sit') === 'Falecido(a)'; let xx = marca('Vivo(a)', v(k + '_sit') === 'Vivo(a)', X, yy); xx = marca('Falecido(a)', fal, xx, yy);
+        campo(fal ? 'Falecimento:' : 'Nascimento:', v(k + '_data'), xx, yy, 128); campo('Cidade:', v(k + '_cid'), xx + 136, yy, X + R - 60 - xx - 136); campo('UF:', v(k + '_uf'), X + R - 52, yy, 52); yy += 21;
+      });
+    };
+    // página 1 — interessados, regime, modalidade e assinaturas
+    pdf.pagina();
+    pdf.texto('FORMULÁRIO PARA HABILITAÇÃO DE CASAMENTO', 297.5, 52, 14, true, 'c');
+    pdf.texto('7ª Circunscrição — Casamento e Notas de Maceió/AL', 297.5, 67, 10, false, 'c');
+    pdf.texto(`Preenchido pelo site em ${new Date().toLocaleDateString('pt-BR')}. Leve impresso, com os documentos originais; a equipe confere os dados no balcão.`, 297.5, 80, 7.5, false, 'c');
+    interessado('i1', '01', 92); interessado('i2', '02', 296);
+    let y = 512;
+    campo('Regime de bens:', d.regime, M, y, 232); campo('Pacto — livro:', d.pacto_livro, M + 240, y, 100); campo('fl.:', d.pacto_fl, M + 346, y, 50); campo('cartório:', d.pacto_cart, M + 402, y, L - 402); y += 22;
+    pdf.texto('NOME APÓS O CASAMENTO', M, y, 9, true); y += 17;
+    campo('Interessado(a) 01:', d.nome1, M, y, L); y += 19; campo('Interessado(a) 02:', d.nome2, M, y, L); y += 21;
+    y = pdf.paragrafo('Declaramos, sob as penas da lei, a veracidade das informações prestadas e não haver os impedimentos previstos nos incisos I a VII do art. 1.521 do Código Civil, e requeremos a instauração do processo de habilitação para casamento na modalidade assinalada abaixo.', M, y, L, 9) + 8;
+    MODS.forEach(([m, desc]) => { const x = marca(m.toUpperCase(), d.modalidade === m, M, y, true); pdf.ajustado('— ' + desc, x - 8, y, M + L - x + 8, 8); y += 15; });
+    y += 12; pdf.texto('Maceió – AL, ______ de ____________________ de ________.', M, y, 10); y += 42;
+    pdf.linha(M, y, M + 235, y, .6); pdf.linha(M + 280, y, M + L, y, .6);
+    pdf.texto('Assinatura — Interessado(a) 01', M + 117.5, y + 11, 8.5, false, 'c'); pdf.texto('Assinatura — Interessado(a) 02', M + 397.5, y + 11, 8.5, false, 'c');
+    rodape();
+    // página 2 — testemunhas
+    pdf.pagina();
+    pdf.texto('TESTEMUNHAS PARA A ENTRADA DO PROCESSO', 297.5, 52, 13, true, 'c');
+    y = pdf.paragrafo('As duas testemunhas comparecem com os interessados na entrega dos documentos, com documento de identidade e CPF. Devem ser maiores de 18 anos e saber assinar; podem ser parentes dos interessados.', M, 76, L, 9);
+    y = pdf.paragrafo('Declaramos não existir qualquer dos impedimentos previstos nos incisos I a VII do art. 1.521 do Código Civil que possa impedir os interessados de contrair matrimônio.', M, y + 6, L, 9, true) + 6;
+    ['t1', 't2'].forEach((p, i) => {
+      const v = (k) => d[`${p}_${k}`] || '';
+      pdf.caixa(M, y, L, 92, 1.2);
+      campo(`TESTEMUNHA 0${i + 1}:`, v('nome'), X, y + 18, R); campo('Natural de:', v('nat'), X, y + 38, 250); campo('Est. civil:', v('ec'), X + 258, y + 38, R - 258);
+      campo('Profissão:', v('prof'), X, y + 58, 190); campo('CPF:', v('cpf'), X + 198, y + 58, 140); campo('Fone:', v('fone'), X + 346, y + 58, R - 346); campo('Endereço:', v('end'), X, y + 78, R);
+      y += 104;
+    });
+    y += 8; campo('Interessado(a) 01:', d.i1_nome, M, y, 360); campo('CPF:', d.i1_cpf, M + 368, y, L - 368); y += 21;
+    campo('Interessado(a) 02:', d.i2_nome, M, y, 360); campo('CPF:', d.i2_cpf, M + 368, y, L - 368); y += 56;
+    pdf.linha(M, y, M + 235, y, .6); pdf.linha(M + 280, y, M + L, y, .6);
+    pdf.texto('Assinatura — Testemunha 01', M + 117.5, y + 11, 8.5, false, 'c'); pdf.texto('Assinatura — Testemunha 02', M + 397.5, y + 11, 8.5, false, 'c'); y += 40;
+    pdf.paragrafo('Depois de habilitados, os interessados têm 90 dias para casar (Código Civil, art. 1.532). A lista de documentos de cada caso está no simulador de casamento do site.', M, y, L, 8.5);
+    rodape();
+    return pdf.blob();
+  }
+  f.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!validar(f) || $$('[data-regra]', f).length) return toast('Informe o nome dos dois interessados e confira os CPFs em vermelho');
+    const url = URL.createObjectURL(gerar(Object.fromEntries(new FormData(f))));
+    const a = Object.assign(document.createElement('a'), { href: url, download: 'habilitacao-casamento.pdf' }); document.body.appendChild(a); a.click(); a.remove();
+    $('#hab-saida').innerHTML = `<div class="resumo"><p class="olho">${ic('check-circ')} PDF gerado</p><p style="margin:0 0 .8rem">Duas páginas: interessados e testemunhas. Imprima, assinem no cartório e levem com os documentos originais.</p>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="bt bt--p" href="${url}" target="_blank" rel="noopener">${ic('arquivo')} Abrir o PDF</a><button class="bt bt--linha bt--p" type="button" data-agendar="casamento">${ic('agenda')} Agendar a entrega</button></div></div>`;
+    toast('PDF gerado — confira a pasta de downloads');
+  });
+})();
+
 /* ------------------------------------------------------------------ links úteis */
 const LINKS = [
-  ['Formulário de habilitação (PDF)', 'Formulário do cartório para preencher à mão e levar com os documentos do casamento.', 'assets/docs/formulario-habilitacao-casamento.pdf'],
+  ['Formulário de habilitação em branco (PDF)', 'Para preencher à mão. Para preencher no site e baixar pronto, use “Preencher o formulário” na página do casamento.', 'assets/docs/formulario-habilitacao-casamento.pdf'],
   ['Portal Extrajudicial de Alagoas', 'Página do TJAL sobre os cartórios do estado: tabela de emolumentos, selos e consultas.', 'https://extrajudicial.tjal.jus.br/'],
   ['Consulta do selo digital (TJAL)', 'Confere o ato a que pertence o selo impresso no documento.', 'https://seloapp.tjal.jus.br/publico/selo'],
   ['Simulador de emolumentos (TJAL)', 'Calcula o valor de um ato pela tabela oficial vigente.', 'https://emolumentos.tjal.jus.br/'],

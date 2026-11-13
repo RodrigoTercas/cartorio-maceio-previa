@@ -210,6 +210,15 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
           <button class="bt" type="button" id="cas-seguir">Continuar</button>
         </div>
       </form>
+      <details class="painel" id="hab" style="margin-top:1.2rem">
+        <summary><b>Preencher o formulário de habilitação on-line</b> <span class="mini">— gera o PDF pronto para imprimir e assinar</span></summary>
+        <form id="form-hab" novalidate style="margin-top:1rem">
+          <p class="sub" style="font-size:.93rem">São os mesmos campos do formulário do balcão. Só os nomes são obrigatórios: o que ficar em branco sai como linha para preencher à mão. <b>Nada é enviado</b> — os dados ficam neste aparelho e o PDF é montado aqui mesmo.</p>
+          <div id="hab-campos"></div>
+          <div id="hab-saida" aria-live="polite"></div>
+          <div class="acoes"><span style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="bt bt--linha bt--p" type="button" id="hab-pre">Trazer do pré-cadastro</button><button class="bt bt--linha bt--p" type="button" id="hab-limpar">Limpar</button></span><button class="bt bt--ouro" type="submit">Gerar PDF preenchido</button></div>
+        </form>
+      </details>
     </div>
     <aside id="espaco">
       <div class="cab"><p class="olho">Espaço de casamentos</p><h3 style="font-size:1.7rem">De cara nova para o seu grande dia</h3>

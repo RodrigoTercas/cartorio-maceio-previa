@@ -333,3 +333,8 @@ mark{background:var(--superficie-2);color:var(--ouro-texto);padding:0 .3rem;bord
   .resumo{animation:sobe .45s cubic-bezier(.22,.61,.36,1)}@keyframes sobe{from{opacity:0;transform:translateY(14px)}}
   details.faq[open] p{animation:sobe .3s ease}
 }
+
+/* formulário de habilitação */
+#hab summary{cursor:pointer}#hab[open] summary{margin-bottom:.4rem}
+.hab-bloco{border:1px solid var(--borda);border-radius:var(--raio-sm);padding:1rem 1rem .2rem;margin:0 0 1rem;min-width:0}
+.linha3{display:grid;gap:0 1rem}@media(min-width:620px){.linha3{grid-template-columns:repeat(3,1fr)}}
