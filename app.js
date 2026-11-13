@@ -175,7 +175,7 @@ const MELHORIAS = [
   ['Novidades e números', 'Cards com as mudanças legais recentes; contadores animados e estimativa de movimento na home.', '#inicio'],
   ['Mapa sob demanda', 'O mapa do Google só carrega quando você clica — sem rastreador antes disso.', '#contato'],
   ['Tema automático e animações', 'Segue o tema claro/escuro do sistema; blocos surgem ao rolar, respeitando “reduzir movimento”.', '#inicio'],
-  ['Movimento e efeitos', 'Transição entre telas, anéis do logo que se desenham, busca que “digita” exemplos, cartões que inclinam com o mouse, ondulação nos botões, confete no protocolo e barra de leitura.', '#inicio'],
+  ['Movimento e efeitos', 'Transição entre telas, busca que “digita” exemplos, cartões que inclinam com o mouse, ondulação nos botões, confete no protocolo e barra de leitura.', '#inicio'],
   ['Lembretes no calendário', 'Arquivo .ics do agendamento (com alarme 2 h antes) e das datas do casamento: entrada da habilitação e cerimônia.', '#casamento'],
 ];
 
@@ -955,8 +955,6 @@ function confete() {
   const barra = document.body.appendChild(Object.assign(document.createElement('div'), { className: 'leitura' }));
   addEventListener('scroll', () => { const max = document.documentElement.scrollHeight - innerHeight; barra.style.transform = `scaleX(${max > 0 ? scrollY / max : 0})`; topo.classList.toggle('compacto', scrollY > 40); }, { passive: true });
   if (CALMO) return;
-  // anéis do logo que se desenham no hero
-  $('#inicio').insertAdjacentHTML('beforeend', '<svg class="hero__aneis" viewBox="0 0 92 80" aria-hidden="true"><circle cx="33" cy="40" r="26" pathLength="1"/><circle cx="59" cy="40" r="26" pathLength="1"/></svg>');
   // a busca “digita” exemplos enquanto está vazia e sem foco
   const campo = $('#busca-hero'), ex = ['casar', 'comprar um imóvel', 'procuração', '2ª via de certidão', 'divórcio', 'herança']; let k = 0, n = 0, apagando = false;
   setInterval(() => { if (document.activeElement === campo || campo.value) return; const p = ex[k]; n += apagando ? -1 : 1; campo.placeholder = 'O que você precisa?  ' + p.slice(0, n) + '▏'; if (n >= p.length + 8) apagando = true; if (n <= 0) { apagando = false; k = (k + 1) % ex.length; } }, 110);
