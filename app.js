@@ -1143,7 +1143,7 @@ $('#form-pergunta').addEventListener('submit', (e) => {
       const r = await lerFoto(arq, (t) => { st.textContent = t; }), lidos = (p[0] === 't' ? ['nome', 'cpf', 'nat'] : ['nome', 'cpf', 'pai', 'mae']).filter((k) => r[k]);
       lidos.forEach((k) => { const el = f.elements[`${p}_${k}`]; el.value = r[k]; el.classList.add('lido'); });
       salvar();
-      st.textContent = lidos.length ? `Lido: ${lidos.map((k) => ROTLIDO[k]).join(', ')}. Confira os campos destacados — a leitura automática erra.` : SEM_LEITURA;
+      resultadoLeitura(st, lidos.length ? `Lido: ${lidos.map((k) => ROTLIDO[k]).join(', ')}. Confira os campos destacados — a leitura automática erra.` : SEM_LEITURA, r.texto);
     } catch (_) { st.textContent = ERRO_LEITURA; }
   });
 
@@ -1261,12 +1261,50 @@ $('#lista-links').innerHTML = LINKS.map(([t, d, u]) => `<a class="card card--cli
 })();
 
 /* ------------------------------------------------------------------ pré-cadastro (fica só no aparelho) */
+// Acha o documento na foto: a caixa que envolve a região clara (o papel) quando o fundo é escuro (mesa, mão).
+// Devolve [x, y, largura, altura] na imagem original; sem fundo escuro em volta, devolve a foto inteira.
+function acharDocumento(img) {
+  const k = 320 / Math.max(img.width, img.height), w = Math.max(1, Math.round(img.width * k)), h = Math.max(1, Math.round(img.height * k));
+  const g = Object.assign(document.createElement('canvas'), { width: w, height: h }).getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, w, h);
+  const p = g.getImageData(0, 0, w, h).data, n = w * h, lum = new Uint8Array(n), hist = new Uint32Array(256);
+  for (let i = 0; i < n; i++) hist[lum[i] = (p[i * 4] * 77 + p[i * 4 + 1] * 150 + p[i * 4 + 2] * 29) >> 8]++;
+  // limiar de Otsu: o corte que melhor separa o claro do escuro
+  let soma = 0, wB = 0, sB = 0, melhor = 0, T = 127;
+  for (let v = 0; v < 256; v++) soma += v * hist[v];
+  for (let v = 0; v < 256; v++) { wB += hist[v]; if (!wB || wB === n) continue; sB += v * hist[v]; const dif = sB / wB - (soma - sB) / (n - wB), entre = wB * (n - wB) * dif * dif; if (entre > melhor) { melhor = entre; T = v; } }
+  // maior sequência de linhas (ou de colunas) com pelo menos 15% de pixels claros
+  const faixa = (tam, outro, claro) => { let ini = 0, fim = -1, a = -1;
+    for (let i = 0; i <= tam; i++) { let c = 0; if (i < tam) for (let j = 0; j < outro; j++) c += claro(i, j); if (i < tam && c >= outro * .15) { if (a < 0) a = i; } else if (a >= 0) { if (i - a > fim - ini + 1) { ini = a; fim = i - 1; } a = -1; } }
+    return [ini, fim]; };
+  const [y0, y1] = faixa(h, w, (y, x) => lum[y * w + x] > T), [x0, x1] = faixa(w, h, (x, y) => lum[y * w + x] > T), cw = x1 - x0 + 1, ch = y1 - y0 + 1;
+  if (cw < w * .2 || ch < h * .2 || (cw > w * .92 && ch > h * .92)) return [0, 0, img.width, img.height];
+  const x = Math.max(0, (x0 - cw * .03) / k), y = Math.max(0, (y0 - ch * .03) / k);
+  return [x, y, Math.min(img.width - x, cw * 1.06 / k), Math.min(img.height - y, ch * 1.06 / k)];
+}
+// Prepara o recorte para o reconhecimento: lado maior em 2800 px (amplia documento pequeno, reduz foto grande), tons de cinza e
+// contraste esticado para clarear o fundo de segurança. `graus` endireita foto deitada; `realce` falso mantém as cores originais.
+function prepararImagem(img, [sx, sy, sw, sh], graus = 0, realce = true) {
+  const k = Math.min(4, 2800 / Math.max(sw, sh)), w = Math.round(sw * k), h = Math.round(sh * k), deitada = graus % 180 !== 0;
+  const cv = Object.assign(document.createElement('canvas'), { width: deitada ? h : w, height: deitada ? w : h }), g = cv.getContext('2d', { willReadFrequently: true });
+  g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
+  g.translate(cv.width / 2, cv.height / 2); g.rotate(graus * Math.PI / 180); g.drawImage(img, sx, sy, sw, sh, -w / 2, -h / 2, w, h);
+  if (!realce) return cv;
+  const d = g.getImageData(0, 0, cv.width, cv.height), p = d.data, hist = new Uint32Array(256), total = p.length / 4;
+  for (let i = 0; i < p.length; i += 4) { const y = (p[i] * 77 + p[i + 1] * 150 + p[i + 2] * 29) >> 8; p[i] = y; hist[y]++; }
+  // o texto é a parte escura: o tom dos 2% mais escuros vira preto e o dos 70% vira branco (ganho limitado a 4×, para não transformar ruído em pontilhado)
+  let ac = 0, lo = 0, hi = 255;
+  for (let v = 0; v < 256; v++) { ac += hist[v]; if (ac < total * .02) lo = v; if (ac < total * .7) hi = v; }
+  const ganho = 255 / Math.max(64, hi - lo);
+  for (let i = 0; i < p.length; i += 4) p[i] = p[i + 1] = p[i + 2] = Math.max(0, Math.min(255, (p[i] - lo) * ganho));
+  g.putImageData(d, 0, 0); return cv;
+}
 // Reconhecimento de texto no próprio aparelho: o arquivo (foto ou PDF) não é enviado nem guardado.
-// Tesseract.js e, para PDF, pdf.js são baixados só quando a pessoa pede. `aviso` recebe o andamento; devolve o que lerDocumento() extraiu.
+// Tesseract.js e, para PDF, pdf.js são baixados só quando a pessoa pede. `aviso` recebe o andamento.
+// Devolve o que lerDocumento() extraiu, mais `texto` (o que o leitor enxergou, para conferência).
 async function lerFoto(arq, aviso) {
   aviso('Preparando o leitor (na primeira vez demora um pouco)…');
   const script = (src) => new Promise((ok, erro) => { const sc = document.createElement('script'); sc.src = src; sc.onload = ok; sc.onerror = erro; document.head.appendChild(sc); });
-  const fontes = [];
+  const imgs = [];
   if (arq.type === 'application/pdf' || /\.pdf$/i.test(arq.name)) {
     const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/';
     if (!window.pdfjsLib) { await script(PDFJS + 'pdf.min.js'); pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js'; }
@@ -1275,45 +1313,68 @@ async function lerFoto(arq, aviso) {
     // PDF digital traz o texto embutido: usa-o direto, sem reconhecimento
     let embutido = '';
     for (const pag of pags) embutido += (await pag.getTextContent()).items.map((t) => t.str + (t.hasEOL ? '\n' : ' ')).join('') + '\n';
-    const r = lerDocumento(embutido); if (Object.keys(r).length) return r;
-    // PDF digitalizado (só imagem): desenha cada página e segue para o reconhecimento
+    const r = lerDocumento(embutido); if (r.nome || r.cpf) return { ...r, texto: embutido };
+    // PDF digitalizado (ou CNH digital, em que os dados estão numa imagem): desenha cada página em alta resolução
     for (const pag of pags) {
-      const base = pag.getViewport({ scale: 1 }), vp = pag.getViewport({ scale: Math.min(3, 2000 / Math.max(base.width, base.height)) });
+      const base = pag.getViewport({ scale: 1 }), vp = pag.getViewport({ scale: Math.min(4, 2800 / Math.max(base.width, base.height)) });
       const cv = Object.assign(document.createElement('canvas'), { width: Math.round(vp.width), height: Math.round(vp.height) });
-      await pag.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise; fontes.push(cv);
+      await pag.render({ canvasContext: cv.getContext('2d'), viewport: vp, intent: 'print' }).promise; imgs.push(cv);   // 'print' não depende de requestAnimationFrame: não trava com a aba em segundo plano
     }
-  } else {
-    // fotos de celular são grandes: reduzir para 2000 px no lado maior acelera a leitura sem perder o texto
-    const img = await createImageBitmap(arq), k = Math.min(1, 2000 / Math.max(img.width, img.height)); let fonte = arq;
-    if (k < 1) { fonte = Object.assign(document.createElement('canvas'), { width: Math.round(img.width * k), height: Math.round(img.height * k) }); fonte.getContext('2d').drawImage(img, 0, 0, fonte.width, fonte.height); }
-    fontes.push(fonte);
-  }
+  } else imgs.push(await createImageBitmap(arq));
   if (!window.Tesseract) await script('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
-  let pagina = 1, texto = '';
-  const worker = await Tesseract.createWorker('por', 1, { logger: (m) => { if (m.status === 'recognizing text') aviso(`Lendo ${fontes.length > 1 ? `a página ${pagina} de ${fontes.length}` : 'o documento'}… ${Math.round(m.progress * 100)}%`); } });
-  for (const fonte of fontes) { texto += (await worker.recognize(fonte)).data.text + '\n'; pagina++; }
+  let passo = '';
+  const worker = await Tesseract.createWorker('por', 1, { logger: (m) => { if (m.status === 'recognizing text') aviso(`Lendo o documento${passo}… ${Math.round(m.progress * 100)}%`); } });
+  // por orientação (de pé, deitado para um lado, para o outro): recorte realçado e, se faltar algo, cores originais em modo “texto esparso”
+  const caixas = imgs.map(acharDocumento); let achado = {}, texto = '', campos = -1, n = 0;
+  for (const graus of [0, 90, 270]) {
+    for (const [realce, modo] of [[true, '3'], [false, '11']]) {
+      if (achado.nome && achado.cpf && achado.mae) break;      // já está completo
+      passo = n++ ? ` (tentativa ${n})` : '';
+      await worker.setParameters({ tessedit_pageseg_mode: modo });
+      let t = ''; for (let i = 0; i < imgs.length; i++) t += (await worker.recognize(prepararImagem(imgs[i], caixas[i], graus, realce))).data.text + '\n';
+      const r = lerDocumento(t); if (Object.keys(r).length > campos) { campos = Object.keys(r).length; texto = t; }
+      const nome = [r.nome, achado.nome].filter(Boolean).sort((x, y) => y.length - x.length)[0];   // entre leituras, o nome mais completo
+      achado = { ...r, ...achado }; if (nome) achado.nome = nome;
+    }
+    if (achado.nome || achado.cpf) break;                      // leu algo nesta orientação: as outras são para foto deitada
+  }
   await worker.terminate();
-  return lerDocumento(texto);
+  // sem o rótulo NOME, mas com cara de documento (achou CPF ou data): arrisca o nome pela primeira linha em maiúsculas
+  if (!achado.nome && (achado.cpf || achado.nasc)) { const palpite = lerDocumento(texto, true).nome; if (palpite) achado.nome = palpite; }
+  return { ...achado, texto: texto.trim() };
 }
-const SEM_LEITURA = 'Não consegui ler os dados. Tente uma foto nítida, de frente e sem reflexo, ou preencha à mão.', ERRO_LEITURA = 'Não foi possível ler este arquivo (sem internet, formato não aceito ou PDF protegido por senha). Preencha à mão.';
+const SEM_LEITURA = 'Não consegui achar os dados. Tente uma foto mais de perto, nítida, de frente e sem reflexo — ou preencha à mão.', ERRO_LEITURA = 'Não foi possível ler este arquivo (sem internet, formato não aceito ou PDF protegido por senha). Preencha à mão.';
+// junto do resultado vai o que o leitor enxergou: ajuda a conferir e a entender uma leitura ruim (foto cortada, de lado, escura)
+const resultadoLeitura = (el, msg, texto) => { el.innerHTML = `${esc(msg)} <details class="lido-bruto"><summary>Ver o que o leitor enxergou</summary><pre>${esc(texto || '(nenhum texto reconhecido)')}</pre></details>`; };
 // Extrai nome, CPF, nascimento, filiação e naturalidade do texto reconhecido de um RG ou de uma CNH.
-// É heurístico (rótulos e posição das linhas): o resultado vai para o formulário destacado, para a pessoa conferir.
-function lerDocumento(texto) {
-  const ROTULO = /NOME|FILIA|IDENTIDADE|EMISSOR|NASCIMENTO|VALIDADE|HABILITA|REP[UÚ]BLICA|REGISTRO|NATURALIDADE|CPF|DATA|ASSINATURA|CARTEIRA|MINIST|DEPARTAMENTO|SECRETARIA|NACIONAL|V[AÁ]LID/i;
+// É heurístico (rótulos e posição das linhas, tolerando erros comuns do reconhecimento): o resultado vai destacado, para a pessoa conferir.
+function lerDocumento(texto, palpite = false) {
+  const ROTULO = /N[O0]ME|FILIA|IDENTIDADE|EMISS|NASCIMENTO|ENDERE|BAIRRO|PROFISS|SOBREN|V[AÁ]LID|HABILITA|REP[UÚ]BLICA|REGISTRO|NATURALIDADE|CPF|\bDATA\b|ASSINATURA|CARTEIRA|MINIST|DEPARTAMENTO|SECRETARIA|NACIONAL|ESTADO|INSTITUTO|TERRIT|SEGURAN|P[UÚ]BLICA|TR[AÂ]NSITO|INFRAESTRUTURA|BRASIL|DETRAN|FEDERA|POL[IÍ]CIA|PERMISS|CATEGORIA|OBSERVA|\bLOCAL\b|\bDOC\b|\b[OÓ]RG|DIRETOR|\bLEI\b|CIVIL|DIGITAL|PORTADOR/i;
   const linhas = texto.split(/\n/).map((l) => l.trim()).filter(Boolean), r = {};
   // uma linha vale como nome se, tirado o ruído, sobram ao menos duas palavras de letras e ela não é um rótulo do documento
-  const nomeDe = (l) => { const n = (l || '').replace(/[^A-Za-zÀ-ÿ' ]/g, ' ').replace(/\s+/g, ' ').trim(); return /^(\S{2,} )+\S{2,}$/.test(n) && !ROTULO.test(n) ? n : ''; };
-  const iNome = linhas.findIndex((l) => /\bNOME\b/i.test(l) && !/SOCIAL|FILIA/i.test(l));
-  if (iNome >= 0) { const n = nomeDe(linhas[iNome].replace(/^.*?\bNOME( E SOBRENOME)?\b[:\s]*/i, '')) || nomeDe(linhas[iNome + 1]) || nomeDe(linhas[iNome + 2]); if (n) r.nome = n; }
-  const iFil = linhas.findIndex((l) => /FILIA[ÇC][ÃA]O/i.test(l));
+  const nomeDe = (l) => { const n = (l || '').replace(/[^A-Za-zÀ-ÿ' ]/g, ' ').replace(/(^| )\S(?= |$)/g, ' ').replace(/\s+/g, ' ').trim(); return /^(\S{2,} )+\S{2,}$/.test(n) && !ROTULO.test(n) ? n : ''; };
+  const iNome = linhas.findIndex((l) => /\bN[O0]M[EF]\b/i.test(l) && !/SOCIAL|FILIA/i.test(l));
+  if (iNome >= 0) {
+    // o valor costuma vir na linha de baixo; o resto da própria linha do rótulo só vale com dois-pontos ou três palavras (rótulo mal lido deixa sobras de duas)
+    const resto = nomeDe(linhas[iNome].replace(/^.*?\bN[O0]M[EF]( E SOBREN[O0]ME)?\b[:\s]*/i, '')), firme = /\bN[O0]M[EF]\s*:/i.test(linhas[iNome]) || resto.split(' ').length >= 3;
+    const n = (firme && resto) || nomeDe(linhas[iNome + 1]) || nomeDe(linhas[iNome + 2]) || resto; if (n) r.nome = n;
+  }
+  // `palpite`: sem o rótulo NOME (comum em foto ruim), a primeira linha em maiúsculas com cara de nome completo — duas palavras de 4 letras ou mais
+  if (!r.nome && palpite) { const n = linhas.map((l) => (/[a-z]{3}/.test(l) || l.replace(/[^A-ZÀ-Ý ]/g, '').length < l.length * .8 ? '' : nomeDe(l))).find((x) => x.split(' ').filter((p) => p.length > 3).length >= 2); if (n) r.nome = n; }
+  // FILIAÇÃO, inclusive mal lida (“FPIRUAÇÃ”): palavra sozinha na linha, começando em F e terminando em ÇÃO/ÇÃ
+  const iFil = linhas.findIndex((l) => /FILIA\S{0,3}O\b/i.test(l) || /^\W*F\S{2,7}[ÇC][ÃA]O?\W*$/i.test(l));
   if (iFil >= 0) {
-    const nomes = [nomeDe(linhas[iFil].replace(/^.*?FILIA[ÇC][ÃA]O[:\s]*/i, ''))].filter(Boolean);
+    const nomes = [nomeDe(linhas[iFil].replace(/^.*?FILIA\S{0,3}O\b[:\s]*/i, ''))].filter(Boolean);
     for (const l of linhas.slice(iFil + 1, iFil + 6)) { const n = nomeDe(l); if (n) nomes.push(n); else if (nomes.length || ROTULO.test(l)) break; if (nomes.length === 2) break; }
     if (nomes.length === 1) r.mae = nomes[0];           // um só nome na filiação costuma ser o da mãe
     else if (nomes.length) { r.pai = nomes[0]; r.mae = nomes[1]; }
   }
-  const cpf = (texto.match(/\d{3}[.\s]?\d{3}[.\s]?\d{3}[-–.\s]?\d{2}/g) || []).map((x) => x.replace(/\D/g, '')).find(cpfValido);
+  // CPF: aceita as trocas comuns do reconhecimento (O por 0, I/l por 1, S por 5, B por 8) e pontuação sobrando (“123.456./789-09”), mas só vale se os dígitos verificadores baterem
+  const D = '[\\dOoIl|SB]', TROCA = { O: '0', o: '0', I: '1', l: '1', '|': '1', S: '5', B: '8' };
+  const cpf = (texto.match(new RegExp(`${D}{3}[.,\\s\\/]{0,2}${D}{3}[.,\\s\\/]{0,2}${D}{3}[-–—.,\\s\\/]{0,2}${D}{2}`, 'g')) || []).filter((x) => x.replace(/\D/g, '').length >= 6)
+    .map((x) => x.replace(/[OoIl|SB]/g, (ch) => TROCA[ch]).replace(/\D/g, '')).find(cpfValido);
   if (cpf) r.cpf = cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  // nascimento: a data do rótulo NASCIMENTO (mesma linha ou a seguinte); sem rótulo, a mais antiga do documento
   const datas = (t) => [...(t || '').matchAll(/\b(\d{2})[\/.-](\d{2})[\/.-](\d{4})\b/g)].map((m) => `${m[3]}-${m[2]}-${m[1]}`).filter((d) => !isNaN(Date.parse(d)) && d > '1900' && d < new Date().toISOString());
   const iNasc = linhas.findIndex((l) => /NASCIMENTO/i.test(l));
   const nasc = (iNasc >= 0 && (datas(linhas[iNasc])[0] || datas(linhas[iNasc + 1])[0])) || datas(texto).sort()[0];
@@ -1356,7 +1417,7 @@ function cpfValido(s) {
       const r = await lerFoto(arq, (t) => { st().textContent = t; }), lidos = ['nome', 'cpf', 'nasc'].filter((k) => r[k]);
       lidos.forEach((k) => { const el = $(`#pre-${i}-${k}`); el.value = r[k]; el.classList.add('lido'); });
       ler();
-      st().textContent = lidos.length ? `Lido: ${lidos.map((k) => ({ nome: 'nome', cpf: 'CPF', nasc: 'nascimento' }[k])).join(', ')}. Confira os campos destacados — a leitura automática erra.` : SEM_LEITURA;
+      resultadoLeitura(st(), lidos.length ? `Lido: ${lidos.map((k) => ({ nome: 'nome', cpf: 'CPF', nasc: 'nascimento' }[k])).join(', ')}. Confira os campos destacados — a leitura automática erra.` : SEM_LEITURA, r.texto);
     } catch (_) { st().textContent = ERRO_LEITURA; }
   });
   $('#pre-mais').addEventListener('click', () => { if (pessoas.length >= 6) return toast('Até seis pessoas por pré-cadastro'); ler(); pessoas.push({}); guarda.set('pre', pessoas); desenhar(); $(`#pre-${pessoas.length - 1}-nome`).focus(); });
