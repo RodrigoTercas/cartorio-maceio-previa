@@ -220,7 +220,7 @@ const MELHORIAS = [
   ['Tema automático e animações', 'Segue o tema claro/escuro do sistema; blocos surgem ao rolar, respeitando “reduzir movimento”.', '#inicio'],
   ['Movimento e efeitos', 'Transição entre telas, busca que “digita” exemplos, cartões que inclinam com o mouse, ondulação nos botões, confete no protocolo e barra de leitura.', '#inicio'],
   ['Formulário de habilitação on-line', 'Os mesmos campos do formulário do balcão, preenchidos no site (CEP e pré-cadastro ajudam); o PDF de duas páginas é montado no próprio aparelho, sem enviar nada.', '#hab'],
-  ['Leitura de documento por foto', 'No formulário de habilitação e no pré-cadastro, a foto do RG ou da CNH preenche nome, CPF, nascimento e filiação. O reconhecimento roda no aparelho: a imagem não é enviada nem guardada.', '#hab'],
+  ['Leitura de documento por foto', 'No formulário de habilitação e no pré-cadastro, a foto ou o PDF do RG ou da CNH preenche nome, CPF, nascimento e filiação. O reconhecimento roda no aparelho: a imagem não é enviada nem guardada.', '#hab'],
   ['Lembretes no calendário', 'Arquivo .ics do agendamento (com alarme 2 h antes) e das datas do casamento: entrada da habilitação e cerimônia.', '#casamento'],
 ];
 
@@ -1095,7 +1095,7 @@ $('#form-pergunta').addEventListener('submit', (e) => {
   const genitor = (p, k, rot) => `<div class="linha2">${c(`${p}_${k}`, `Nome ${rot}`)}${s(`${p}_${k}_sit`, 'Situação', ['Vivo(a)', 'Falecido(a)'])}</div>
     <div class="linha3">${c(`${p}_${k}_data`, 'Nascimento (ou falecimento)', 'placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10"')}${c(`${p}_${k}_cid`, 'Cidade')}${c(`${p}_${k}_uf`, 'UF', 'maxlength="2"')}</div>`;
   const pessoa = (p, n) => `<fieldset class="hab-bloco"><legend class="legenda">Interessado(a) ${n}</legend>
-    <p class="mini" style="margin:0 0 .8rem"><button class="bt bt--linha bt--p" type="button" data-ocr="${p}">${ic('upload')} Ler de uma foto do RG ou da CNH</button> <span data-ocr-st="${p}" aria-live="polite"></span></p>
+    <p class="mini" style="margin:0 0 .8rem"><button class="bt bt--linha bt--p" type="button" data-ocr="${p}">${ic('upload')} Ler de uma foto ou PDF do RG ou da CNH</button> <span data-ocr-st="${p}" aria-live="polite"></span></p>
     <div class="linha2">${c(p + '_nome', 'Nome completo', 'required autocomplete="off"')}${c(p + '_cpf', 'CPF', CPF)}</div>
     <div class="linha3">${s(p + '_ec', 'Estado civil', EC)}${c(p + '_nac', 'Nacionalidade')}${c(p + '_prof', 'Profissão')}</div>
     <div class="linha3">${c(p + '_fone', 'Telefone', 'type="tel" inputmode="tel"')}${c(p + '_cep', 'CEP', 'inputmode="numeric" maxlength="9" placeholder="57000-000"')}${c(p + '_bairro', 'Bairro')}</div>
@@ -1103,7 +1103,7 @@ $('#form-pergunta').addEventListener('submit', (e) => {
     <div class="linha2">${c(p + '_cidade', 'Cidade')}${c(p + '_uf', 'UF', 'maxlength="2"')}</div>
     ${genitor(p, 'pai', 'do pai')}${genitor(p, 'mae', 'da mãe')}</fieldset>`;
   const testemunha = (p, n) => `<fieldset class="hab-bloco"><legend class="legenda">Testemunha ${n} <span class="dica">(pode ficar para o balcão)</span></legend>
-    <p class="mini" style="margin:0 0 .8rem"><button class="bt bt--linha bt--p" type="button" data-ocr="${p}">${ic('upload')} Ler de uma foto do RG ou da CNH</button> <span data-ocr-st="${p}" aria-live="polite"></span></p>
+    <p class="mini" style="margin:0 0 .8rem"><button class="bt bt--linha bt--p" type="button" data-ocr="${p}">${ic('upload')} Ler de uma foto ou PDF do RG ou da CNH</button> <span data-ocr-st="${p}" aria-live="polite"></span></p>
     <div class="linha2">${c(p + '_nome', 'Nome completo')}${c(p + '_cpf', 'CPF', CPF)}</div>
     <div class="linha3">${c(p + '_nat', 'Natural de')}${s(p + '_ec', 'Estado civil', EC.concat('Casado(a)'))}${c(p + '_prof', 'Profissão')}</div>
     <div class="linha2">${c(p + '_fone', 'Telefone', 'type="tel" inputmode="tel"')}${c(p + '_end', 'Endereço completo')}</div></fieldset>`;
@@ -1261,19 +1261,41 @@ $('#lista-links').innerHTML = LINKS.map(([t, d, u]) => `<a class="card card--cli
 })();
 
 /* ------------------------------------------------------------------ pré-cadastro (fica só no aparelho) */
-// Reconhecimento de texto no próprio aparelho (Tesseract.js, baixado só quando a pessoa pede): a foto não é enviada nem guardada.
-// `aviso` recebe o andamento; devolve o que lerDocumento() extraiu.
+// Reconhecimento de texto no próprio aparelho: o arquivo (foto ou PDF) não é enviado nem guardado.
+// Tesseract.js e, para PDF, pdf.js são baixados só quando a pessoa pede. `aviso` recebe o andamento; devolve o que lerDocumento() extraiu.
 async function lerFoto(arq, aviso) {
   aviso('Preparando o leitor (na primeira vez demora um pouco)…');
-  if (!window.Tesseract) await new Promise((ok, erro) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; sc.onload = ok; sc.onerror = erro; document.head.appendChild(sc); });
-  // fotos de celular são grandes: reduzir para 2000 px no lado maior acelera a leitura sem perder o texto
-  const img = await createImageBitmap(arq), k = Math.min(1, 2000 / Math.max(img.width, img.height)); let fonte = arq;
-  if (k < 1) { fonte = Object.assign(document.createElement('canvas'), { width: Math.round(img.width * k), height: Math.round(img.height * k) }); fonte.getContext('2d').drawImage(img, 0, 0, fonte.width, fonte.height); }
-  const worker = await Tesseract.createWorker('por', 1, { logger: (m) => { if (m.status === 'recognizing text') aviso(`Lendo o documento… ${Math.round(m.progress * 100)}%`); } });
-  const { data } = await worker.recognize(fonte); await worker.terminate();
-  return lerDocumento(data.text);
+  const script = (src) => new Promise((ok, erro) => { const sc = document.createElement('script'); sc.src = src; sc.onload = ok; sc.onerror = erro; document.head.appendChild(sc); });
+  const fontes = [];
+  if (arq.type === 'application/pdf' || /\.pdf$/i.test(arq.name)) {
+    const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/';
+    if (!window.pdfjsLib) { await script(PDFJS + 'pdf.min.js'); pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js'; }
+    const doc = await pdfjsLib.getDocument({ data: await arq.arrayBuffer() }).promise, pags = [];
+    for (let i = 1; i <= Math.min(2, doc.numPages); i++) pags.push(await doc.getPage(i));   // ponytail: só as 2 primeiras páginas — um documento de identidade cabe nelas
+    // PDF digital traz o texto embutido: usa-o direto, sem reconhecimento
+    let embutido = '';
+    for (const pag of pags) embutido += (await pag.getTextContent()).items.map((t) => t.str + (t.hasEOL ? '\n' : ' ')).join('') + '\n';
+    const r = lerDocumento(embutido); if (Object.keys(r).length) return r;
+    // PDF digitalizado (só imagem): desenha cada página e segue para o reconhecimento
+    for (const pag of pags) {
+      const base = pag.getViewport({ scale: 1 }), vp = pag.getViewport({ scale: Math.min(3, 2000 / Math.max(base.width, base.height)) });
+      const cv = Object.assign(document.createElement('canvas'), { width: Math.round(vp.width), height: Math.round(vp.height) });
+      await pag.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise; fontes.push(cv);
+    }
+  } else {
+    // fotos de celular são grandes: reduzir para 2000 px no lado maior acelera a leitura sem perder o texto
+    const img = await createImageBitmap(arq), k = Math.min(1, 2000 / Math.max(img.width, img.height)); let fonte = arq;
+    if (k < 1) { fonte = Object.assign(document.createElement('canvas'), { width: Math.round(img.width * k), height: Math.round(img.height * k) }); fonte.getContext('2d').drawImage(img, 0, 0, fonte.width, fonte.height); }
+    fontes.push(fonte);
+  }
+  if (!window.Tesseract) await script('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+  let pagina = 1, texto = '';
+  const worker = await Tesseract.createWorker('por', 1, { logger: (m) => { if (m.status === 'recognizing text') aviso(`Lendo ${fontes.length > 1 ? `a página ${pagina} de ${fontes.length}` : 'o documento'}… ${Math.round(m.progress * 100)}%`); } });
+  for (const fonte of fontes) { texto += (await worker.recognize(fonte)).data.text + '\n'; pagina++; }
+  await worker.terminate();
+  return lerDocumento(texto);
 }
-const SEM_LEITURA = 'Não consegui ler os dados. Tente uma foto nítida, de frente e sem reflexo, ou preencha à mão.', ERRO_LEITURA = 'Não foi possível ler esta imagem (sem internet ou formato não aceito). Preencha à mão.';
+const SEM_LEITURA = 'Não consegui ler os dados. Tente uma foto nítida, de frente e sem reflexo, ou preencha à mão.', ERRO_LEITURA = 'Não foi possível ler este arquivo (sem internet, formato não aceito ou PDF protegido por senha). Preencha à mão.';
 // Extrai nome, CPF, nascimento, filiação e naturalidade do texto reconhecido de um RG ou de uma CNH.
 // É heurístico (rótulos e posição das linhas): o resultado vai para o formulário destacado, para a pessoa conferir.
 function lerDocumento(texto) {
@@ -1312,7 +1334,7 @@ function cpfValido(s) {
   const campo = (i, n, rot, extra = '') => `<div class="campo"><label for="pre-${i}-${n}">${rot}</label>${extra.startsWith('<') ? extra : `<input id="pre-${i}-${n}" name="${n}" value="${esc(pessoas[i][n] || '')}" ${extra}>`}</div>`;
   function desenhar() {
     raiz.innerHTML = pessoas.map((p, i) => `<fieldset class="painel pre-pessoa" data-i="${i}"><legend class="legenda">Pessoa ${i + 1} ${pessoas.length > 1 ? `<button class="bt bt--linha bt--p" type="button" data-pre-rm="${i}">remover</button>` : ''}</legend>
-      <p class="mini" style="margin:0 0 .8rem"><button class="bt bt--linha bt--p" type="button" data-pre-ocr="${i}">${ic('upload')} Ler de uma foto do RG ou da CNH</button> <span data-pre-st="${i}" aria-live="polite"></span></p>
+      <p class="mini" style="margin:0 0 .8rem"><button class="bt bt--linha bt--p" type="button" data-pre-ocr="${i}">${ic('upload')} Ler de uma foto ou PDF do RG ou da CNH</button> <span data-pre-st="${i}" aria-live="polite"></span></p>
       <div class="linha2">${campo(i, 'nome', 'Nome completo', 'required autocomplete="off"')}${campo(i, 'cpf', 'CPF', 'required inputmode="numeric" placeholder="000.000.000-00" maxlength="14"')}</div>
       <div class="linha2">${campo(i, 'nasc', 'Data de nascimento', 'type="date"')}${campo(i, 'ec', 'Estado civil', `<select id="pre-${i}-ec" name="ec">${EC.map((e) => `<option ${p.ec === e ? 'selected' : ''}>${e}</option>`).join('')}</select>`)}</div>
       <div class="linha2">${campo(i, 'prof', 'Profissão', '')}${campo(i, 'nac', 'Nacionalidade', '')}</div>
@@ -1326,7 +1348,7 @@ function cpfValido(s) {
     const fs = c.closest('.pre-pessoa'); try { const r = await (await fetch(`https://viacep.com.br/ws/${d}/json/`)).json(); if (r.erro) return toast('CEP não encontrado'); $('[name="end"]', fs).value = r.logradouro || ''; $('[name="bairro"]', fs).value = r.bairro || ''; $('[name="cidade"]', fs).value = `${r.localidade}/${r.uf}`; ler(); toast('Endereço preenchido pelo CEP'); } catch (_) { toast('Sem conexão com o ViaCEP'); } });
   raiz.addEventListener('input', (e) => { const c = e.target; c.classList.remove('lido'); if (c.name === 'cpf') { const d = c.value.replace(/\D/g, '').slice(0, 11); c.value = d.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2'); if (d.length === 11 && !cpfValido(d)) c.dataset.regra = '1'; else delete c.dataset.regra; } ler(); });
   raiz.addEventListener('click', (e) => { const b = e.target.closest('[data-pre-rm]'); if (!b) return; ler(); pessoas.splice(+b.dataset.preRm, 1); guarda.set('pre', pessoas); desenhar(); });
-  const fotoPre = f.appendChild(Object.assign(document.createElement('input'), { type: 'file', accept: 'image/*', hidden: true })); let alvoPre = 0;
+  const fotoPre = f.appendChild(Object.assign(document.createElement('input'), { type: 'file', accept: 'image/*,application/pdf', hidden: true })); let alvoPre = 0;
   raiz.addEventListener('click', (e) => { const b = e.target.closest('[data-pre-ocr]'); if (!b) return; alvoPre = +b.dataset.preOcr; fotoPre.value = ''; fotoPre.click(); });
   fotoPre.addEventListener('change', async () => {
     const arq = fotoPre.files[0], i = alvoPre, st = () => $(`[data-pre-st="${i}"]`); if (!arq) return;
