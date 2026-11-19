@@ -2,6 +2,9 @@
    Script clássico (não módulo) de propósito: abre por file:// sem servidor. */
 (() => {
 'use strict';
+// false = protótipo de apresentação; true = site no domínio oficial. Quem troca é o producao.py, ao montar o pacote:
+// em produção saem os dados simulados (horários ocupados, movimento, etapas de demonstração, parcelas) e o painel “O que mudou”.
+const PRODUCAO = false;
 const $ = (s, c = document) => c.querySelector(s);
 const $$ = (s, c = document) => [...c.querySelectorAll(s)];
 const ic = (n) => `<svg aria-hidden="true"><use href="#i-${n}"/></svg>`;
@@ -561,7 +564,7 @@ const TOUR = [
   ['#form-acomp', 'atendimento', 'pedidos', 'Acompanhar pedido', 'Pelo protocolo, o cidadão vê em que etapa está o pedido — sem cadastro e sem ligar para o cartório.'],
   ['#verificar .card', 'verificar', null, 'Verificar documento', 'Selo digital, apostila, certidão digital e e-Notariado: cada um na consulta oficial, com o código já copiado.'],
   ['#bt-apres', 'inicio', null, 'O que mudou', 'Este painel lista as 25 melhorias em relação ao site atual, cada uma com link para ver no protótipo.'],
-];
+].filter((p) => !PRODUCAO || p[0] !== '#bt-apres');
 (function tour() {
   const caixa = $('#tour'); let i = -1, alvo = null;
   const limpar = () => { alvo?.classList.remove('tour-alvo'); alvo = null; };
@@ -623,11 +626,11 @@ function acompanhar(prot) {
   saida.innerHTML = `<div class="resumo"><p class="olho">${ic('check-circ')} ${esc(p.tipo)} ${esc(p.prot)}</p><p style="margin:0">${esc(p.resumo)}</p>
     <ol class="linha-tempo">${etapas.map((t, i) => `<li class="${i <= feita ? 'feito' : 'pendente'}"><b>${t}</b><span>${i === 0 ? new Date(p.quando).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : i <= feita ? 'concluída' : 'a confirmar pela equipe'}</span></li>`).join('')}</ol>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="bt bt--whats bt--p" target="_blank" rel="noopener" href="${wa(`Olá! Quero saber o andamento do pedido ${p.prot}.`)}">${ic('whatsapp')} Perguntar o andamento</a>
-      ${feita < etapas.length - 1 ? `<button class="bt bt--linha bt--p" type="button" data-avancar="${esc(p.prot)}">Simular próxima etapa</button>` : ''}
-      ${'Notification' in window && Notification.permission !== 'granted' ? '<button class="bt bt--linha bt--p" type="button" id="ac-avisar">Avisar-me das etapas</button>' : ''}
+      ${!PRODUCAO && feita < etapas.length - 1 ? `<button class="bt bt--linha bt--p" type="button" data-avancar="${esc(p.prot)}">Simular próxima etapa</button>` : ''}
+      ${!PRODUCAO && 'Notification' in window && Notification.permission !== 'granted' ? '<button class="bt bt--linha bt--p" type="button" id="ac-avisar">Avisar-me das etapas</button>' : ''}
       ${p.pix && feita === 0 ? `<button class="bt bt--p" type="button" data-copiar="${esc(p.pix)}">Copiar o código Pix</button>` : ''}
       <button class="bt bt--linha bt--p" type="button" data-compartilhar="${esc(p.tipo + ' ' + p.prot)}" data-texto="${esc(p.texto)}">Compartilhar</button></div>
-    <p class="mini" style="margin:.7rem 0 0">Protótipo: no site definitivo as etapas são atualizadas pela equipe; o botão “simular” só demonstra a tela.</p></div>`;
+    <p class="mini" style="margin:.7rem 0 0">${PRODUCAO ? 'O site registra o envio do pedido; as etapas seguintes a equipe confirma pelo WhatsApp ou por e-mail.' : 'Protótipo: no site definitivo as etapas são atualizadas pela equipe; o botão “simular” só demonstra a tela.'}</p></div>`;
 }
 $('#form-acomp').addEventListener('submit', (e) => { e.preventDefault(); const c = $('#ac-prot'); c.value = c.value.trim().toUpperCase(); if (!validar(e.target)) return; acompanhar(c.value); });
 $('#ac-saida').addEventListener('click', (e) => { const b = e.target.closest('[data-avancar]'); if (!b) return;
@@ -673,7 +676,7 @@ const agendamento = (() => {
   const hora = $('#ag-hora'), min = iso(somaDias(new Date(), 1)), max = iso(somaDias(new Date(), 90));
   // agenda visual: mês navegável, dias úteis clicáveis, grade de horários
   // ponytail: ocupação simulada por hash determinístico (~30%); trocar por consulta à agenda real da serventia
-  const ocupado = (d, h) => parseInt(idDoc(d + h).slice(1), 36) % 10 < 3;
+  const ocupado = (d, h) => !PRODUCAO && parseInt(idDoc(d + h).slice(1), 36) % 10 < 3;
   let mes = new Date(); mes.setDate(1);
   function desenharAgenda() {
     const hoje = iso(new Date()), y = mes.getFullYear(), m = mes.getMonth(), ini = new Date(y, m, 1).getDay(), dias = new Date(y, m + 1, 0).getDate();
@@ -861,7 +864,7 @@ const custas = (() => {
         <tr><td>TSNR — taxa de fiscalização (${TABELA_AL.tsnr}%)</td><td class="item">art. 24</td><td class="num">${brl(taxa)}</td></tr>
         <tr><td>ISS municipal sobre o emolumento</td><td class="item">Maceió</td><td class="num"><mark>[a serventia informa]</mark></td></tr>
         <tr class="total"><td colspan="2">Total estimado (sem ISS)</td><td class="num">${brl(total)}</td></tr></tbody></table></div>
-      <p class="mini" style="margin:.6rem 0 0">Parcelado no cartão <mark>[condições: a serventia informa]</mark>:</p><div class="parcelas">${[3, 6, 12].map((n) => `<span>${n}× de ${brl(total / n)}</span>`).join('')}</div>
+      ${PRODUCAO ? '' : `<p class="mini" style="margin:.6rem 0 0">Parcelado no cartão <mark>[condições: a serventia informa]</mark>:</p><div class="parcelas">${[3, 6, 12].map((n) => `<span>${n}× de ${brl(total / n)}</span>`).join('')}</div>`}
       <p class="mini">Confira no <a href="https://emolumentos.tjal.jus.br/" target="_blank" rel="noopener">simulador oficial do TJAL</a>. Não inclui ITBI/ITCMD, registro de imóveis nem certidões de outros órgãos. O valor é conferido pelo cartório antes do ato.</p>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="bt bt--p" type="button" data-agendar="${sel.value in POR_ID ? sel.value : 'escritura'}">${ic('agenda')} Agendar este ato</button>
         <a class="bt bt--whats bt--p" target="_blank" rel="noopener" href="${wa(`Olá! Simulei no site: ${a.nome} — estimativa de ${brl(total)}. Podem confirmar o valor?`)}">${ic('whatsapp')} Confirmar com a equipe</a></div></div>`;
@@ -1092,7 +1095,7 @@ $('#bt-instalar').addEventListener('click', async () => { if (!promptInstalar) r
   // ponytail: movimento estimado pela hora do dia (padrão típico de balcão); trocar pela fila real da serventia
   const [aberto] = estadoAgora(), h = +new Intl.DateTimeFormat('en-US', { timeZone: 'America/Maceio', hour: 'numeric', hourCycle: 'h23' }).format(new Date());
   const nivel = !aberto ? ['Fechado', 'agende para evitar fila'] : h < 9 ? ['Baixo', 'espera de ~5 min'] : h < 11 ? ['Alto', 'espera de ~25 min'] : h < 12 ? ['Médio', 'espera de ~15 min'] : h < 15 ? ['Baixo', 'espera de ~5 min'] : ['Médio', 'espera de ~15 min'];
-  $('#movimento b').textContent = nivel[0]; $('#movimento span').insertAdjacentHTML('beforeend', ` · ${nivel[1]}`);
+  if (PRODUCAO) $('#movimento').remove(); else { $('#movimento b').textContent = nivel[0]; $('#movimento span').insertAdjacentHTML('beforeend', ` · ${nivel[1]}`); }
 })();
 
 /* ------------------------------------------------------------------ novidades */
@@ -1500,4 +1503,5 @@ btApres.addEventListener('click', () => alternarApres(!apres.classList.contains(
 $('#apres-fechar').addEventListener('click', () => alternarApres(false));
 apres.addEventListener('click', (e) => { if (e.target.closest('[data-ir-apres],[data-abrir]') && innerWidth < 700) alternarApres(false); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { alternarApres(false); topo.classList.remove('aberto'); } });
+if (PRODUCAO) { btApres.remove(); apres.remove(); }
 })();
