@@ -848,18 +848,18 @@ const custas = (() => {
 
 /* ------------------------------------------------------------------ certidões: tabela CRC, Pix “copia e cola” e área de pagamento */
 // Tabela CRC do cartório (certidões pela Central de Registro Civil): materialização + emissão no estado de origem.
-// Alagoas tem regra própria: neste cartório não há emissão; em outro cartório de Maceió soma-se outra materialização; o interior não está na tabela.
+// Regra do cartório: registro daqui, só a materialização; outro cartório de Alagoas (capital ou interior), o dobro; outro estado, materialização + emissão do estado.
 const TABELA_CRC = {
   materializacao: 118.77,
   emissao: { AC: 26.80, AM: 96.84, AP: 57.52, BA: 43.86, CE: 80.62, DF: 44.28, ES: 44.92, GO: 94.35, MA: 82.14, MG: 66.30, MS: 57.56, MT: 30.11, PA: 190.12, PB: 68.83, PE: 71.19, PI: 92.42, PR: 64.09, RJ: 188.76, RN: 104.34, RO: 34.98, RR: 33.30, RS: 59.79, SC: 51.06, SE: 71.65, SP: 46.74, TO: 59.81 },
 };
 const UFS = { AC: 'Acre', AM: 'Amazonas', AP: 'Amapá', BA: 'Bahia', CE: 'Ceará', DF: 'Distrito Federal', ES: 'Espírito Santo', GO: 'Goiás', MA: 'Maranhão', MG: 'Minas Gerais', MS: 'Mato Grosso do Sul', MT: 'Mato Grosso', PA: 'Pará', PB: 'Paraíba', PE: 'Pernambuco', PI: 'Piauí', PR: 'Paraná', RJ: 'Rio de Janeiro', RN: 'Rio Grande do Norte', RO: 'Rondônia', RR: 'Roraima', RS: 'Rio Grande do Sul', SC: 'Santa Catarina', SE: 'Sergipe', SP: 'São Paulo', TO: 'Tocantins' };
-// Itens [descrição, valor] da certidão conforme a origem do registro; null quando a tabela não cobre o caso (a equipe informa o valor)
+// Itens [descrição, valor] da certidão conforme a origem do registro; null quando não se sabe onde foi o registro (a equipe informa o valor)
 function itensCertidao(onde, uf) {
   const mat = ['Certidão de materialização', TABELA_CRC.materializacao];
   if (onde === 'aqui') return [mat];
-  if (onde !== 'outro' || uf === 'AL-INT' || !uf) return null;
-  if (uf === 'AL-MCZ') return [mat, ['Emissão em outro cartório de Maceió', TABELA_CRC.materializacao]];
+  if (onde !== 'outro' || !uf) return null;
+  if (uf === 'AL') return [mat, ['Emissão em outro cartório de Alagoas', TABELA_CRC.materializacao]];
   return uf in TABELA_CRC.emissao ? [mat, [`Emissão no cartório de origem (${UFS[uf]})`, TABELA_CRC.emissao[uf]]] : null;
 }
 // Recebedor do Pix. A chave foi informada pelo cartório; nome e cidade vão no código (até 25 e 15 letras, sem acento) — o banco mostra o titular real da chave.
@@ -921,9 +921,9 @@ document.addEventListener('click', async (e) => {
 // 2ª via de certidão: monta o pedido, calcula o valor pela tabela CRC e abre a área de pagamento
 (function certidao() {
   const f = $('#form-certidao'), onde = $('#cert-onde'), uf = $('#cert-uf');
-  uf.innerHTML = '<option value="">Escolha…</option><option value="AL-MCZ">Alagoas — outro cartório de Maceió</option><option value="AL-INT">Alagoas — outra cidade</option>' + Object.entries(UFS).map(([s, n]) => `<option value="${s}">${n}</option>`).join('');
+  uf.innerHTML = '<option value="">Escolha…</option><option value="AL">Alagoas (outro cartório, da capital ou do interior)</option>' + Object.entries(UFS).map(([s, n]) => `<option value="${s}">${n}</option>`).join('');
   const valores = Object.values(TABELA_CRC.emissao);
-  $('#cert-precos').innerHTML = `<li>Registro neste cartório: <b>${brl(TABELA_CRC.materializacao)}</b></li><li>Outro cartório de Maceió: <b>${brl(2 * TABELA_CRC.materializacao)}</b></li><li>Outros estados: de <b>${brl(TABELA_CRC.materializacao + Math.min(...valores))}</b> a <b>${brl(TABELA_CRC.materializacao + Math.max(...valores))}</b>, conforme o estado</li>`;
+  $('#cert-precos').innerHTML = `<li>Registro neste cartório: <b>${brl(TABELA_CRC.materializacao)}</b></li><li>Outro cartório de Alagoas: <b>${brl(2 * TABELA_CRC.materializacao)}</b></li><li>Outros estados: de <b>${brl(TABELA_CRC.materializacao + Math.min(...valores))}</b> a <b>${brl(TABELA_CRC.materializacao + Math.max(...valores))}</b>, conforme o estado</li>`;
   const alternar = () => { const fora = onde.value === 'outro'; $('#cert-fora').hidden = !fora; uf.required = fora; };
   onde.addEventListener('change', alternar); alternar();
   f.addEventListener('submit', (e) => {
@@ -938,7 +938,7 @@ document.addEventListener('click', async (e) => {
     $('#cert-saida').innerHTML = `<div class="resumo"><p class="olho">${ic('check-circ')} Pedido ${prot} montado</p><p style="margin:0 0 .8rem">${esc(texto).replace(/\n/g, '<br>')}</p>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="bt bt--whats bt--p" target="_blank" rel="noopener" href="${wa(msg)}">${ic('whatsapp')} Enviar o pedido à equipe</a>
       <a class="bt bt--linha bt--p" href="${mailto('Pedido de certidão ' + prot, msg)}">${ic('email')} Por e-mail</a></div>
-      ${total ? '' : `<div class="aviso" style="margin-top:.9rem">${ic('alerta')}<p>${x.onde === 'naosei' ? 'Sem saber onde foi o registro, o valor depende da busca.' : 'A tabela do cartório não traz o valor para cidades do interior de Alagoas.'} A equipe informa o valor e envia o Pix pelo WhatsApp.</p></div>`}
+      ${total ? '' : `<div class="aviso" style="margin-top:.9rem">${ic('alerta')}<p>Sem saber onde foi o registro, o valor depende da busca. A equipe informa o valor e envia o Pix pelo WhatsApp.</p></div>`}
       ${daqui ? '<p class="mini" style="margin:.7rem 0 0">Também é possível pedir pelo portal <a target="_blank" rel="noopener" href="https://www.registrocivil.net/2873?targetForm=T">Registro Civil on-line</a>, com pagamento lá. Use um caminho só, para não pagar duas vezes.</p>' : ''}
       <div data-pagamento></div></div>`;
     if (total) areaPagamento($('#cert-saida [data-pagamento]'), { prot, itens });
