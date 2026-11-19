@@ -182,6 +182,7 @@ const MELHORIAS = [
   ['Movimento e efeitos', 'Transição entre telas, busca que “digita” exemplos, cartões que inclinam com o mouse, ondulação nos botões, confete no protocolo e barra de leitura.', '#inicio'],
   ['Formulário de habilitação on-line', 'Os campos do formulário complementar do cartório, preenchidos no site; o resultado é o próprio PDF oficial, preenchido no aparelho e ainda editável.', '#hab'],
   ['Leitura de documento por foto ou PDF', 'RG, CNH em foto e CNH digital em PDF: preenche o nome no formulário de habilitação e nome, CPF e nascimento no pré-cadastro. O reconhecimento roda no aparelho: o arquivo não é enviado nem guardado.', '#hab'],
+  ['Pagamento da certidão por Pix', 'O pedido de 2ª via calcula o valor pela tabela CRC do cartório (materialização + emissão do estado de origem), mostra o QR Code e o “copia e cola” e recebe o comprovante, que segue pelo WhatsApp ou e-mail.', '#certidoes'],
   ['Lembretes no calendário', 'Arquivo .ics do agendamento (com alarme 2 h antes) e das datas do casamento: entrada da habilitação e cerimônia.', '#casamento'],
 ];
 
@@ -609,7 +610,8 @@ desenharPedidos();
 
 // acompanhar pedido — etapas por tipo; só a 1ª é real aqui (registro no site). No site definitivo, a equipe avança as demais.
 const ETAPAS = { Agendamento: ['Pedido registrado no site', 'Enviado à equipe', 'Horário confirmado', 'Atendimento realizado'],
-  Certidão: ['Pedido registrado no site', 'Enviado à equipe', 'Registro localizado', 'Certidão emitida'],
+  Certidão: ['Pedido registrado no site', 'Comprovante enviado', 'Pagamento conferido pela equipe', 'Certidão emitida'],
+  'Certidão notarial': ['Pedido registrado no site', 'Enviado à equipe', 'Ato localizado no livro', 'Certidão emitida'],
   Ouvidoria: ['Manifestação registrada', 'Recebida pela serventia', 'Em apuração', 'Resposta enviada'],
   Empresa: ['Pedido registrado no site', 'Enviado à equipe', 'Contato da equipe', 'Atendimento recorrente ativo'],
   Pergunta: ['Pergunta registrada', 'Enviada à equipe', 'Em análise pelo tabelião', 'Respondida'] };
@@ -622,6 +624,7 @@ function acompanhar(prot) {
     <div style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="bt bt--whats bt--p" target="_blank" rel="noopener" href="${wa(`Olá! Quero saber o andamento do pedido ${p.prot}.`)}">${ic('whatsapp')} Perguntar o andamento</a>
       ${feita < etapas.length - 1 ? `<button class="bt bt--linha bt--p" type="button" data-avancar="${esc(p.prot)}">Simular próxima etapa</button>` : ''}
       ${'Notification' in window && Notification.permission !== 'granted' ? '<button class="bt bt--linha bt--p" type="button" id="ac-avisar">Avisar-me das etapas</button>' : ''}
+      ${p.pix && feita === 0 ? `<button class="bt bt--p" type="button" data-copiar="${esc(p.pix)}">Copiar o código Pix</button>` : ''}
       <button class="bt bt--linha bt--p" type="button" data-compartilhar="${esc(p.tipo + ' ' + p.prot)}" data-texto="${esc(p.texto)}">Compartilhar</button></div>
     <p class="mini" style="margin:.7rem 0 0">Protótipo: no site definitivo as etapas são atualizadas pela equipe; o botão “simular” só demonstra a tela.</p></div>`;
 }
@@ -843,24 +846,104 @@ const custas = (() => {
   return { escolher(id) { sel.value = id in ATOS_CUSTAS ? id : ''; desenharCampos(); } };
 })();
 
-// 2ª via de certidão
+/* ------------------------------------------------------------------ certidões: tabela CRC, Pix “copia e cola” e área de pagamento */
+// Tabela CRC do cartório (certidões pela Central de Registro Civil): materialização + emissão no estado de origem.
+// Alagoas tem regra própria: neste cartório não há emissão; em outro cartório de Maceió soma-se outra materialização; o interior não está na tabela.
+const TABELA_CRC = {
+  materializacao: 118.77,
+  emissao: { AC: 26.80, AM: 96.84, AP: 57.52, BA: 43.86, CE: 80.62, DF: 44.28, ES: 44.92, GO: 94.35, MA: 82.14, MG: 66.30, MS: 57.56, MT: 30.11, PA: 190.12, PB: 68.83, PE: 71.19, PI: 92.42, PR: 64.09, RJ: 188.76, RN: 104.34, RO: 34.98, RR: 33.30, RS: 59.79, SC: 51.06, SE: 71.65, SP: 46.74, TO: 59.81 },
+};
+const UFS = { AC: 'Acre', AM: 'Amazonas', AP: 'Amapá', BA: 'Bahia', CE: 'Ceará', DF: 'Distrito Federal', ES: 'Espírito Santo', GO: 'Goiás', MA: 'Maranhão', MG: 'Minas Gerais', MS: 'Mato Grosso do Sul', MT: 'Mato Grosso', PA: 'Pará', PB: 'Paraíba', PE: 'Pernambuco', PI: 'Piauí', PR: 'Paraná', RJ: 'Rio de Janeiro', RN: 'Rio Grande do Norte', RO: 'Rondônia', RR: 'Roraima', RS: 'Rio Grande do Sul', SC: 'Santa Catarina', SE: 'Sergipe', SP: 'São Paulo', TO: 'Tocantins' };
+// Itens [descrição, valor] da certidão conforme a origem do registro; null quando a tabela não cobre o caso (a equipe informa o valor)
+function itensCertidao(onde, uf) {
+  const mat = ['Certidão de materialização', TABELA_CRC.materializacao];
+  if (onde === 'aqui') return [mat];
+  if (onde !== 'outro' || uf === 'AL-INT' || !uf) return null;
+  if (uf === 'AL-MCZ') return [mat, ['Emissão em outro cartório de Maceió', TABELA_CRC.materializacao]];
+  return uf in TABELA_CRC.emissao ? [mat, [`Emissão no cartório de origem (${UFS[uf]})`, TABELA_CRC.emissao[uf]]] : null;
+}
+// Recebedor do Pix. A chave foi informada pelo cartório; nome e cidade vão no código (até 25 e 15 letras, sem acento) — o banco mostra o titular real da chave.
+const PIX = { chave: 'moraesfabiano1342@gmail.com', nome: 'CASAMENTO E NOTAS MACEIO', cidade: 'MACEIO' };
+// Monta o BR Code estático do Pix (padrão EMV do Banco Central): campos “id + tamanho + valor” e CRC16 no fim. Sem `valor`, quem paga digita a quantia.
+function pixCopiaECola(valor, txid, pix = PIX) {
+  const campo = (id, v) => id + String(v.length).padStart(2, '0') + v;
+  const limpo = (t, n) => t.normalize('NFD').replace(/[^\x20-\x7E]/g, '').slice(0, n);
+  const base = campo('00', '01') + campo('26', campo('00', 'br.gov.bcb.pix') + campo('01', pix.chave)) + campo('52', '0000') + campo('53', '986') + (valor ? campo('54', valor.toFixed(2)) : '')
+    + campo('58', 'BR') + campo('59', limpo(pix.nome, 25)) + campo('60', limpo(pix.cidade, 15)) + campo('62', campo('05', txid.replace(/[^A-Za-z0-9]/g, '').slice(0, 25) || '***')) + '6304';
+  let crc = 0xFFFF;   // CRC16-CCITT: polinômio 0x1021, valor inicial 0xFFFF
+  for (const ch of base) { crc ^= ch.charCodeAt(0) << 8; for (let i = 0; i < 8; i++) crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF; }
+  return base + crc.toString(16).toUpperCase().padStart(4, '0');
+}
+const brl = (n) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+// Depois do comprovante enviado, o pedido avança para a etapa “Comprovante enviado” no acompanhamento
+function marcarComprovante(prot) {
+  const l = guarda.get('pedidos', []), p = l.find((q) => q.prot === prot); if (!p) return;
+  p.etapa = Math.max(p.etapa ?? 0, 1); guarda.set('pedidos', l); desenharPedidos();
+}
+// Área de pagamento de um pedido: valores, QR Code e código do Pix, e envio do comprovante. O site só mostra o código:
+// o pagamento acontece no aplicativo do banco e o comprovante sai do aparelho direto para o WhatsApp ou o e-mail do cartório.
+function areaPagamento(el, { prot, itens }) {
+  const total = itens.reduce((s, [, v]) => s + v, 0), codigo = pixCopiaECola(total, prot);
+  el.innerHTML = `<div class="pagamento"><p class="olho">Pagamento por Pix</p>
+    <div class="tabela"><table><tbody>${itens.map(([d, v]) => `<tr><td>${esc(d)}</td><td class="num">${brl(v)}</td></tr>`).join('')}<tr class="total"><td>Total</td><td class="num">${brl(total)}</td></tr></tbody></table></div>
+    <p><b>1. Pague pelo aplicativo do seu banco</b> — em Pix, escolha “Ler QR Code” ou “Pix copia e cola”.</p>
+    <div class="pix"><div class="pix__qr" data-qr role="img" aria-label="QR Code do Pix de ${brl(total)}"></div>
+      <div><div class="campo"><label for="pix-${prot}">Pix copia e cola</label><textarea id="pix-${prot}" readonly rows="4">${codigo}</textarea></div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="bt bt--p" type="button" data-copiar="${codigo}">Copiar código</button><button class="bt bt--linha bt--p" type="button" data-compartilhar="Pix do pedido ${prot}" data-texto="${codigo}">Enviar o código</button></div>
+        <p class="mini" style="margin:.6rem 0 0">Valor <b>${brl(total)}</b>, pedido ${prot}. Antes de confirmar, confira no aplicativo o <b>nome do recebedor</b> e o valor.</p></div></div>
+    <p style="margin-top:1.2rem"><b>2. Envie o comprovante</b> — a equipe confere o pagamento e emite a certidão.</p>
+    <input type="file" id="comp-${prot}" accept="image/*,application/pdf" hidden>
+    <div style="display:flex;gap:.5rem .8rem;flex-wrap:wrap;align-items:center"><label class="bt bt--linha bt--p" for="comp-${prot}">${ic('upload')} Escolher o comprovante</label><span class="mini" data-comp-nome>Nenhum arquivo escolhido (imagem ou PDF)</span></div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.7rem"><button class="bt bt--whats" type="button" data-enviar-comp disabled>${ic('whatsapp')} Enviar comprovante pelo WhatsApp</button>
+      <a class="bt bt--linha" data-email-comp href="${mailto('Comprovante — pedido ' + prot, `Comprovante de pagamento do pedido ${prot}\nValor: ${brl(total)}\n\n(Anexe aqui o arquivo do comprovante.)`)}">${ic('email')} Por e-mail</a></div>
+    <p class="mini" style="margin:.6rem 0 0">O site não processa o pagamento nem guarda o comprovante: o arquivo sai do seu aparelho direto para o WhatsApp ou o e-mail do cartório.</p></div>`;
+  // o QR Code é desenhado por uma biblioteca pequena, baixada só agora; sem internet, o código “copia e cola” continua valendo
+  carregarScript('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js').then(() => { const q = qrcode(0, 'M'); q.addData(codigo); q.make(); $('[data-qr]', el).innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); })
+    .catch(() => { $('[data-qr]', el).innerHTML = '<p class="mini">QR Code indisponível sem internet — use o código ao lado.</p>'; });
+  let arq = null; const enviar = $('[data-enviar-comp]', el);
+  $(`#comp-${prot}`, el).addEventListener('change', (e) => { arq = e.target.files[0] || null; $('[data-comp-nome]', el).textContent = arq ? `${arq.name} (${Math.max(1, Math.round(arq.size / 1024))} KB)` : 'Nenhum arquivo escolhido (imagem ou PDF)'; enviar.disabled = !arq; });
+  enviar.addEventListener('click', async () => {
+    const texto = `*Comprovante de pagamento — pedido ${prot}*\nValor: ${brl(total)}`;
+    try {
+      // no celular, a folha de compartilhamento leva o arquivo junto; no computador, abre a conversa e a pessoa anexa
+      if (navigator.canShare && navigator.canShare({ files: [arq] })) await navigator.share({ files: [arq], text: texto });
+      else { window.open(wa(`${texto}\n\n(Vou anexar o comprovante nesta conversa.)`), '_blank', 'noopener'); toast('Anexe o arquivo do comprovante na conversa que abriu'); }
+      marcarComprovante(prot);
+    } catch (_) { /* compartilhamento cancelado */ }
+  });
+  $('[data-email-comp]', el).addEventListener('click', () => marcarComprovante(prot));
+}
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-copiar]'); if (!b) return;
+  try { await navigator.clipboard.writeText(b.dataset.copiar); toast('Código Pix copiado — cole no aplicativo do banco'); } catch (_) { toast('Não deu para copiar: selecione o código e copie à mão'); }
+});
+
+// 2ª via de certidão: monta o pedido, calcula o valor pela tabela CRC e abre a área de pagamento
 (function certidao() {
-  const f = $('#form-certidao'), onde = $('#cert-onde');
-  onde.addEventListener('change', () => { $('#cert-cartorio').hidden = onde.value !== 'outro'; });
+  const f = $('#form-certidao'), onde = $('#cert-onde'), uf = $('#cert-uf');
+  uf.innerHTML = '<option value="">Escolha…</option><option value="AL-MCZ">Alagoas — outro cartório de Maceió</option><option value="AL-INT">Alagoas — outra cidade</option>' + Object.entries(UFS).map(([s, n]) => `<option value="${s}">${n}</option>`).join('');
+  const valores = Object.values(TABELA_CRC.emissao);
+  $('#cert-precos').innerHTML = `<li>Registro neste cartório: <b>${brl(TABELA_CRC.materializacao)}</b></li><li>Outro cartório de Maceió: <b>${brl(2 * TABELA_CRC.materializacao)}</b></li><li>Outros estados: de <b>${brl(TABELA_CRC.materializacao + Math.min(...valores))}</b> a <b>${brl(TABELA_CRC.materializacao + Math.max(...valores))}</b>, conforme o estado</li>`;
+  const alternar = () => { const fora = onde.value === 'outro'; $('#cert-fora').hidden = !fora; uf.required = fora; };
+  onde.addEventListener('change', alternar); alternar();
   f.addEventListener('submit', (e) => {
     e.preventDefault(); if (!validar(f)) return;
     const x = Object.fromEntries(new FormData(f));
-    const tipo = { casamento: 'Casamento', nascimento: 'Nascimento', obito: 'Óbito' }[x.tipo];
-    const daqui = x.onde === 'aqui';
-    const texto = `Certidão de ${tipo} — ${x.modelo}\nNome no registro: ${x.nome}${x.data ? `\nData aproximada: ${x.data}` : ''}\nRegistro: ${daqui ? 'neste cartório' : x.onde === 'outro' ? (x.serventia || 'outro cartório') : 'não sei onde'}`;
-    const prot = protocolo('CE'); const msg = `*Pedido de certidão ${prot}*\n\n${texto}\n\nEnviado pelo site.`;
-    registrarPedido({ tipo: 'Certidão', prot, resumo: `${tipo} · ${x.nome}`, texto: msg });
+    const tipo = { casamento: 'Casamento', nascimento: 'Nascimento', obito: 'Óbito' }[x.tipo], daqui = x.onde === 'aqui';
+    const origem = daqui ? 'neste cartório' : x.onde === 'outro' ? `${x.serventia || 'outro cartório'} (${uf.selectedOptions[0].text})` : 'não sei onde';
+    const itens = itensCertidao(x.onde, x.uf), total = itens && itens.reduce((s, [, v]) => s + v, 0), prot = protocolo('CE');
+    const texto = `Certidão de ${tipo} — ${x.modelo}\nNome no registro: ${x.nome}${x.data ? `\nData aproximada: ${x.data}` : ''}\nRegistro: ${origem}\n${total ? `Valor pela tabela CRC: ${brl(total)} (Pix; comprovante a seguir)` : 'Valor: a confirmar pela equipe'}`;
+    const msg = `*Pedido de certidão ${prot}*\n\n${texto}\n\nEnviado pelo site.`;
+    registrarPedido({ tipo: 'Certidão', prot, resumo: `${tipo} · ${x.nome}${total ? ' · ' + brl(total) : ''}`, texto: msg, pix: total ? pixCopiaECola(total, prot) : undefined });
     $('#cert-saida').innerHTML = `<div class="resumo"><p class="olho">${ic('check-circ')} Pedido ${prot} montado</p><p style="margin:0 0 .8rem">${esc(texto).replace(/\n/g, '<br>')}</p>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap">${daqui ? `<a class="bt bt--ouro" target="_blank" rel="noopener" href="https://www.registrocivil.net/2873?targetForm=T">Pedir pelo Registro Civil on-line</a>` : ''}
-      <a class="bt bt--whats" target="_blank" rel="noopener" href="${wa(msg)}">${ic('whatsapp')} ${daqui ? 'Ou pelo WhatsApp' : 'Enviar à equipe'}</a>
-      <a class="bt bt--linha" href="${mailto('Pedido de certidão ' + prot, msg)}">${ic('email')} Por e-mail</a></div>
-      ${daqui ? '' : '<p class="mini" style="margin:.7rem 0 0">Registros de outros cartórios: a equipe solicita à serventia de origem pela central nacional.</p>'}</div>`;
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="bt bt--whats bt--p" target="_blank" rel="noopener" href="${wa(msg)}">${ic('whatsapp')} Enviar o pedido à equipe</a>
+      <a class="bt bt--linha bt--p" href="${mailto('Pedido de certidão ' + prot, msg)}">${ic('email')} Por e-mail</a></div>
+      ${total ? '' : `<div class="aviso" style="margin-top:.9rem">${ic('alerta')}<p>${x.onde === 'naosei' ? 'Sem saber onde foi o registro, o valor depende da busca.' : 'A tabela do cartório não traz o valor para cidades do interior de Alagoas.'} A equipe informa o valor e envia o Pix pelo WhatsApp.</p></div>`}
+      ${daqui ? '<p class="mini" style="margin:.7rem 0 0">Também é possível pedir pelo portal <a target="_blank" rel="noopener" href="https://www.registrocivil.net/2873?targetForm=T">Registro Civil on-line</a>, com pagamento lá. Use um caminho só, para não pagar duas vezes.</p>' : ''}
+      <div data-pagamento></div></div>`;
+    if (total) areaPagamento($('#cert-saida [data-pagamento]'), { prot, itens });
     toast(`Pedido ${prot} salvo em “Meus pedidos”`);
+    $('#cert-saida').scrollIntoView({ block: 'nearest' });
   });
 })();
 
@@ -1157,7 +1240,7 @@ $('#lista-links').innerHTML = LINKS.map(([t, d, u]) => `<a class="card card--cli
     e.preventDefault(); if (!validar(f)) return;
     const x = Object.fromEntries(new FormData(f)), prot = protocolo('CN');
     const texto = `*Pedido de certidão notarial ${prot}*\n\nAto: ${x.tipo}${x.ano ? ` (${x.ano})` : ''}${x.livro ? `\nLivro/folha: ${x.livro}` : ''}\nPartes: ${x.partes}\nFinalidade: ${x.fim}\n\nSolicitante: ${x.nome}\nWhatsApp: ${x.tel}\n\nEnviado pelo site.`;
-    registrarPedido({ tipo: 'Certidão', prot, resumo: `${x.tipo} · ${x.partes}`, texto });
+    registrarPedido({ tipo: 'Certidão notarial', prot, resumo: `${x.tipo} · ${x.partes}`, texto });
     $('#cn-saida').innerHTML = `<div class="resumo"><p class="olho">${ic('check-circ')} Pedido ${prot} montado</p><p style="margin:0 0 .8rem">A equipe localiza o ato no livro, confirma o valor e avisa quando a certidão estiver pronta.</p>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="bt bt--whats" target="_blank" rel="noopener" href="${wa(texto)}">${ic('whatsapp')} Enviar à equipe</a><a class="bt bt--linha" href="${mailto('Pedido de certidão notarial ' + prot, texto)}">${ic('email')} Por e-mail</a><a class="bt bt--linha bt--p" href="#atendimento" data-aba="pedidos">Acompanhar</a></div></div>`;
     toast(`Pedido ${prot} salvo em “Meus pedidos”`);

@@ -251,9 +251,10 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
           <div class="campo"><label for="cert-nome">Nome de quem consta na certidão</label><input id="cert-nome" name="nome" required autocomplete="off"></div>
           <div class="campo"><label for="cert-data">Data do registro/fato (aprox.)</label><input id="cert-data" name="data" placeholder="ex.: 2015 ou 12/03/2015"></div>
         </div>
-        <div class="campo" id="cert-cartorio" hidden><label for="cert-serv">Cartório e cidade do registro</label><input id="cert-serv" name="serventia" placeholder="ex.: 2º Cartório de Arapiraca/AL"></div>
+        <div class="linha2" id="cert-fora" hidden><div class="campo"><label for="cert-uf">Estado do registro</label><select id="cert-uf" name="uf"></select></div>
+          <div class="campo"><label for="cert-serv">Cartório e cidade do registro</label><input id="cert-serv" name="serventia" placeholder="ex.: 2º Cartório de Arapiraca/AL"></div></div>
         <div id="cert-saida" aria-live="polite"></div>
-        <div class="acoes"><span class="mini">O valor segue a tabela do TJAL; a equipe confirma antes de emitir.</span><button class="bt" type="submit">Montar pedido</button></div>
+        <div class="acoes"><span class="mini">Valor pela tabela CRC do cartório. O Pix aparece na tela seguinte.</span><button class="bt" type="submit">Montar pedido e ver o Pix</button></div>
       </form>
       <form class="painel" id="form-cert-notas" novalidate style="margin-top:1.2rem">
         <p class="olho">Atos de notas</p><h3 style="margin:.2rem 0 .8rem">Certidão de escritura, procuração ou ata</h3>
@@ -278,6 +279,7 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
     <aside class="grade" style="align-content:start">
       <div class="card"><span class="tag tag--gratis">Gratuito por lei</span><h3>Registro de nascimento e de óbito</h3>
         <p>O registro e a primeira certidão de nascimento e de óbito são gratuitos para todos.</p></div>
+      <div class="card"><h3>Quanto custa</h3><ul class="mini" style="padding-left:1.1rem;margin:0" id="cert-precos"></ul><p class="mini">Tabela CRC do cartório: materialização da certidão mais a emissão no cartório de origem. Pagamento por Pix, com envio do comprovante.</p></div>
       <div class="card"><h3>Precisa para casar?</h3><p>Certidões de nascimento para habilitação devem estar atualizadas. O simulador mostra o que cada um precisa.</p>
         <div class="card__pe"><a class="bt bt--p" href="#casamento">Abrir o simulador</a></div></div>
     </aside>
@@ -485,7 +487,7 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
     <div><div class="cab"><p class="olho">Privacidade e proteção de dados</p><h2>O que este site guarda — e o que não guarda</h2><p class="sub">Transparência conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018).</p></div>
       <div class="painel">
         <h3>Fica só no seu aparelho</h3><p>Simulações, checklists, pedidos, pré-cadastro, tema e tamanho da letra são gravados no armazenamento do seu navegador (<code>localStorage</code>). Nada disso é enviado ao cartório nem a terceiros pelo site.</p>
-        <h3>O que o site não faz</h3><ul><li>Não usa cookies de rastreamento nem ferramentas de análise de audiência.</li><li>Não carrega fontes, scripts ou mapas de terceiros sem um clique seu (o mapa do Google só abre quando você pede).</li><li>O leitor de documentos (foto ou PDF) é baixado só quando você o usa, e o arquivo é lido no próprio aparelho: não é enviado nem guardado.</li><li>Não pede CPF, documentos ou pagamento por formulário do site.</li></ul>
+        <h3>O que o site não faz</h3><ul><li>Não usa cookies de rastreamento nem ferramentas de análise de audiência.</li><li>Não carrega fontes, scripts ou mapas de terceiros sem um clique seu (o mapa do Google só abre quando você pede).</li><li>O leitor de documentos (foto ou PDF) é baixado só quando você o usa, e o arquivo é lido no próprio aparelho: não é enviado nem guardado.</li><li>Não processa pagamento: na certidão, o site mostra o código Pix e você paga no aplicativo do seu banco; o comprovante sai do seu aparelho direto para o WhatsApp ou o e-mail do cartório.</li></ul>
         <h3>Quando você envia algo</h3><p>Ao escolher “Enviar pelo WhatsApp” ou “por e-mail”, o conteúdo sai pelo aplicativo que você escolheu, sob a política de privacidade dele. O cartório trata esses dados só para o atendimento pedido, pelo tempo exigido pelas normas do serviço extrajudicial.</p>
         <h3>Seus direitos</h3><p>Confirmação, acesso, correção, anonimização e eliminação dos dados, entre outros (LGPD, art. 18). Encarregado(a) de dados: <mark>[a serventia informa]</mark> — <a href="mailto:1crcmaceio@gmail.com">1crcmaceio@gmail.com</a>.</p>
         <div class="acoes"><span class="mini" id="priv-resumo"></span><button class="bt bt--linha" type="button" id="priv-apagar">Apagar tudo que o site guardou aqui</button></div>
