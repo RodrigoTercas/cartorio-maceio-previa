@@ -764,6 +764,21 @@ const agendamento = (() => {
 /* ------------------------------------------------------------------ custas — Lei estadual nº 9.778/2025 (AL)
    Emolumentos do Anexo I; TSNR de 26% sobre o emolumento (art. 24), exceto atos gratuitos.
    Valores transcritos da lei; a equipe confere na hora do ato. */
+// Tabela CRC do cartório (certidões pela Central de Registro Civil): materialização + emissão no estado de origem.
+// Regra do cartório: registro daqui, só a materialização; outro cartório de Alagoas (capital ou interior), o dobro; outro estado, materialização + emissão do estado.
+const TABELA_CRC = {
+  materializacao: 118.77,
+  emissao: { AC: 26.80, AM: 96.84, AP: 57.52, BA: 43.86, CE: 80.62, DF: 44.28, ES: 44.92, GO: 94.35, MA: 82.14, MG: 66.30, MS: 57.56, MT: 30.11, PA: 190.12, PB: 68.83, PE: 71.19, PI: 92.42, PR: 64.09, RJ: 188.76, RN: 104.34, RO: 34.98, RR: 33.30, RS: 59.79, SC: 51.06, SE: 71.65, SP: 46.74, TO: 59.81 },
+};
+const UFS = { AC: 'Acre', AM: 'Amazonas', AP: 'Amapá', BA: 'Bahia', CE: 'Ceará', DF: 'Distrito Federal', ES: 'Espírito Santo', GO: 'Goiás', MA: 'Maranhão', MG: 'Minas Gerais', MS: 'Mato Grosso do Sul', MT: 'Mato Grosso', PA: 'Pará', PB: 'Paraíba', PE: 'Pernambuco', PI: 'Piauí', PR: 'Paraná', RJ: 'Rio de Janeiro', RN: 'Rio Grande do Norte', RO: 'Rondônia', RR: 'Roraima', RS: 'Rio Grande do Sul', SC: 'Santa Catarina', SE: 'Sergipe', SP: 'São Paulo', TO: 'Tocantins' };
+// Itens [descrição, valor] da certidão conforme a origem do registro; null quando não se sabe onde foi o registro (a equipe informa o valor)
+function itensCertidao(onde, uf) {
+  const mat = ['Certidão de materialização', TABELA_CRC.materializacao];
+  if (onde === 'aqui') return [mat];
+  if (onde !== 'outro' || !uf) return null;
+  if (uf === 'AL') return [mat, ['Emissão em outro cartório de Alagoas', TABELA_CRC.materializacao]];
+  return uf in TABELA_CRC.emissao ? [mat, [`Emissão no cartório de origem (${UFS[uf]})`, TABELA_CRC.emissao[uf]]] : null;
+}
 const TABELA_AL = {
   fonte: 'Lei estadual nº 9.778, de 23/12/2025 (DOE-AL 29/12/2025), Anexo I — em vigor desde março de 2026',
   tsnr: 26,
@@ -798,8 +813,10 @@ const ATOS_CUSTAS = {
   ata: { nome: 'Ata notarial', campos: [['paginas', 'Páginas', 'n']], linhas: ({ paginas }) => [['Primeira folha', 'Notas 4.1', 141.97], ...(paginas > 1 ? [[`${paginas - 1} página(s) excedente(s)`, 'Notas 4.2', 6 * (paginas - 1)]] : [])] },
   casamento: { nome: 'Casamento', campos: [['local', 'Onde', ['sede:No cartório', 'urbana:Fora do cartório, zona urbana', 'rural:Fora do cartório, zona rural, ou em fim de semana/feriado']]],
     linhas: ({ local }) => [['Habilitação, registro e assento de casamento', 'RCPN 1.1', 319.23], ...(local === 'urbana' ? [['Celebração fora da serventia (zona urbana)', 'RCPN 1.3', 63.35]] : local === 'rural' ? [['Celebração fora da serventia (rural / fim de semana / feriado)', 'RCPN 1.4', 164.94]] : [])] },
-  'segunda-via': { nome: '2ª via de certidão', campos: [['tipo', 'Modelo', ['breve:Breve relato (1 folha)', 'inteiro:Inteiro teor']]],
-    linhas: ({ tipo }) => tipo === 'inteiro' ? [['Certidão de inteiro teor', 'RCPN 5.3', 66.52]] : [['Certidão, uma folha', 'RCPN 5.1', 44.35]] },
+  // 2ª via de registro civil: valor final da tabela CRC do cartório (a mesma do pedido de certidão), sem TSNR por cima
+  'segunda-via': { nome: '2ª via de certidão (registro civil)', tabelaCRC: true,
+    campos: [['origem', 'Onde foi o registro', ['aqui:Neste cartório', 'AL:Outro cartório de Alagoas (capital ou interior)', ...Object.entries(UFS).map(([sg, n]) => `${sg}:Outro estado — ${n}`)]]],
+    linhas: ({ origem }) => itensCertidao(origem === 'aqui' ? 'aqui' : 'outro', origem).map(([d, v]) => [d, 'Tabela CRC', v]) },
   nascimento: { nome: 'Registro de nascimento', linhas: () => [['Registro e primeira certidão', 'RCPN 2.1', 0]] },
   obito: { nome: 'Registro de óbito', linhas: () => [['Assento e primeira certidão', 'RCPN 2.2', 0]] },
   retificacao: { nome: 'Retificação de registro', linhas: () => [['Procedimento de retificação (sem erro do oficial)', 'RCPN 8.1', 88.54], ['Averbação à margem do registro', 'RCPN 4.1', 56.66], ['Certidão atualizada', 'RCPN 5.1', 44.35]] },
@@ -830,6 +847,12 @@ const custas = (() => {
     if (!linhas) return saida.innerHTML = '<p class="sub" style="font-size:.95rem">Informe o valor do negócio para ver a estimativa.</p>';
     const emol = linhas.reduce((s, l) => s + l[2], 0);
     if (!emol) return saida.innerHTML = `<div class="resumo"><p class="olho">${ic('check-circ')} Gratuito por lei</p><p style="margin:0">${linhas.map((l) => esc(l[0])).join('; ')} — sem emolumentos nem taxa (${linhas.map((l) => l[1]).join(', ')}).</p></div>`;
+    if (a.tabelaCRC) return saida.innerHTML = `<div class="resumo"><p class="olho">Valor da certidão</p><p class="preco">${brl(emol)}</p><p class="mini">${esc(a.nome)}</p>
+      <div class="tabela"><table><thead><tr><th>Componente</th><th>Item</th><th class="num">Valor</th></tr></thead><tbody>
+        ${linhas.map((l) => `<tr><td>${esc(l[0])}</td><td class="item">${l[1]}</td><td class="num">${brl(l[2])}</td></tr>`).join('')}
+        <tr class="total"><td colspan="2">Total</td><td class="num">${brl(emol)}</td></tr></tbody></table></div>
+      <p class="mini">Valor final pela tabela CRC do cartório: neste cartório, só a materialização; em outro cartório de Alagoas, o dobro; em outro estado, a materialização mais a emissão do estado de origem.</p>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="bt bt--p" href="#certidoes">${ic('arquivo')} Pedir a certidão e pagar por Pix</a></div></div>`;
     const taxa = emol * TABELA_AL.tsnr / 100, total = emol + taxa;
     saida.innerHTML = `<div class="resumo"><p class="olho">Estimativa</p><p class="preco">${brl(total)}</p><p class="mini">${esc(a.nome)}</p>
       <div class="tabela"><table><thead><tr><th>Componente</th><th>Item</th><th class="num">Valor</th></tr></thead><tbody>
@@ -847,21 +870,6 @@ const custas = (() => {
 })();
 
 /* ------------------------------------------------------------------ certidões: tabela CRC, Pix “copia e cola” e área de pagamento */
-// Tabela CRC do cartório (certidões pela Central de Registro Civil): materialização + emissão no estado de origem.
-// Regra do cartório: registro daqui, só a materialização; outro cartório de Alagoas (capital ou interior), o dobro; outro estado, materialização + emissão do estado.
-const TABELA_CRC = {
-  materializacao: 118.77,
-  emissao: { AC: 26.80, AM: 96.84, AP: 57.52, BA: 43.86, CE: 80.62, DF: 44.28, ES: 44.92, GO: 94.35, MA: 82.14, MG: 66.30, MS: 57.56, MT: 30.11, PA: 190.12, PB: 68.83, PE: 71.19, PI: 92.42, PR: 64.09, RJ: 188.76, RN: 104.34, RO: 34.98, RR: 33.30, RS: 59.79, SC: 51.06, SE: 71.65, SP: 46.74, TO: 59.81 },
-};
-const UFS = { AC: 'Acre', AM: 'Amazonas', AP: 'Amapá', BA: 'Bahia', CE: 'Ceará', DF: 'Distrito Federal', ES: 'Espírito Santo', GO: 'Goiás', MA: 'Maranhão', MG: 'Minas Gerais', MS: 'Mato Grosso do Sul', MT: 'Mato Grosso', PA: 'Pará', PB: 'Paraíba', PE: 'Pernambuco', PI: 'Piauí', PR: 'Paraná', RJ: 'Rio de Janeiro', RN: 'Rio Grande do Norte', RO: 'Rondônia', RR: 'Roraima', RS: 'Rio Grande do Sul', SC: 'Santa Catarina', SE: 'Sergipe', SP: 'São Paulo', TO: 'Tocantins' };
-// Itens [descrição, valor] da certidão conforme a origem do registro; null quando não se sabe onde foi o registro (a equipe informa o valor)
-function itensCertidao(onde, uf) {
-  const mat = ['Certidão de materialização', TABELA_CRC.materializacao];
-  if (onde === 'aqui') return [mat];
-  if (onde !== 'outro' || !uf) return null;
-  if (uf === 'AL') return [mat, ['Emissão em outro cartório de Alagoas', TABELA_CRC.materializacao]];
-  return uf in TABELA_CRC.emissao ? [mat, [`Emissão no cartório de origem (${UFS[uf]})`, TABELA_CRC.emissao[uf]]] : null;
-}
 // Recebedor do Pix. A chave foi informada pelo cartório; nome e cidade vão no código (até 25 e 15 letras, sem acento) — o banco mostra o titular real da chave.
 const PIX = { chave: 'moraesfabiano1342@gmail.com', nome: 'CASAMENTO E NOTAS MACEIO', cidade: 'MACEIO' };
 // Monta o BR Code estático do Pix (padrão EMV do Banco Central): campos “id + tamanho + valor” e CRC16 no fim. Sem `valor`, quem paga digita a quantia.
@@ -924,13 +932,16 @@ document.addEventListener('click', async (e) => {
   uf.innerHTML = '<option value="">Escolha…</option><option value="AL">Alagoas (outro cartório, da capital ou do interior)</option>' + Object.entries(UFS).map(([s, n]) => `<option value="${s}">${n}</option>`).join('');
   const valores = Object.values(TABELA_CRC.emissao);
   $('#cert-precos').innerHTML = `<li>Registro neste cartório: <b>${brl(TABELA_CRC.materializacao)}</b></li><li>Outro cartório de Alagoas: <b>${brl(2 * TABELA_CRC.materializacao)}</b></li><li>Outros estados: de <b>${brl(TABELA_CRC.materializacao + Math.min(...valores))}</b> a <b>${brl(TABELA_CRC.materializacao + Math.max(...valores))}</b>, conforme o estado</li>`;
-  const alternar = () => { const fora = onde.value === 'outro'; $('#cert-fora').hidden = !fora; uf.required = fora; };
-  onde.addEventListener('change', alternar); alternar();
+  const cidade = $('#cert-cidade');
+  // “Em outro cartório” abre, logo abaixo, estado e cidade (obrigatórios); a prévia mostra o valor assim que o estado é escolhido
+  const previa = () => { const it = itensCertidao('outro', uf.value); $('#cert-previa').textContent = it ? `Valor para ${uf.selectedOptions[0].text.replace(/ \(.*/, '')}: ${brl(it.reduce((a, [, v]) => a + v, 0))}.` : ''; };
+  const alternar = () => { const fora = onde.value === 'outro'; $('#cert-fora').hidden = !fora; uf.required = cidade.required = fora; if (fora) uf.focus(); };
+  onde.addEventListener('change', alternar); uf.addEventListener('change', previa); alternar();
   f.addEventListener('submit', (e) => {
     e.preventDefault(); if (!validar(f)) return;
     const x = Object.fromEntries(new FormData(f));
     const tipo = { casamento: 'Casamento', nascimento: 'Nascimento', obito: 'Óbito' }[x.tipo], daqui = x.onde === 'aqui';
-    const origem = daqui ? 'neste cartório' : x.onde === 'outro' ? `${x.serventia || 'outro cartório'} (${uf.selectedOptions[0].text})` : 'não sei onde';
+    const origem = daqui ? 'neste cartório' : x.onde === 'outro' ? `${x.serventia ? x.serventia + ', ' : ''}${x.cidade}/${x.uf}` : 'não sei onde';
     const itens = itensCertidao(x.onde, x.uf), total = itens && itens.reduce((s, [, v]) => s + v, 0), prot = protocolo('CE');
     const texto = `Certidão de ${tipo} — ${x.modelo}\nNome no registro: ${x.nome}${x.data ? `\nData aproximada: ${x.data}` : ''}\nRegistro: ${origem}\n${total ? `Valor pela tabela CRC: ${brl(total)} (Pix; comprovante a seguir)` : 'Valor: a confirmar pela equipe'}`;
     const msg = `*Pedido de certidão ${prot}*\n\n${texto}\n\nEnviado pelo site.`;

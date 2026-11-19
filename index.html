@@ -235,7 +235,7 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
   <div class="container grade g-lado">
     <div>
       <div class="cab"><p class="olho">Certidões</p><h2>Peça a 2ª via sem sair de casa</h2>
-        <p class="sub">Monte o pedido em três toques. Para certidões deste cartório, o pedido segue pelo Registro Civil on-line; das demais serventias, a equipe busca para você.</p></div>
+        <p class="sub">Monte o pedido, veja o valor na hora e pague por Pix. Certidões de outros cartórios, de qualquer estado, a equipe busca para você.</p></div>
       <form class="painel" id="form-certidao" novalidate>
         <div class="linha2">
           <div class="campo"><label for="cert-tipo">Certidão de</label>
@@ -243,6 +243,11 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
           <div class="campo"><label for="cert-onde">Onde foi registrada?</label>
             <select id="cert-onde" name="onde"><option value="aqui">Neste cartório</option><option value="outro">Em outro cartório</option><option value="naosei">Não sei</option></select></div>
         </div>
+        <fieldset class="hab-bloco" id="cert-fora" hidden><legend class="legenda">Onde fica o outro cartório</legend>
+          <div class="linha3"><div class="campo"><label for="cert-uf">Estado</label><select id="cert-uf" name="uf"></select></div>
+            <div class="campo"><label for="cert-cidade">Cidade</label><input id="cert-cidade" name="cidade" placeholder="ex.: Arapiraca" autocomplete="off"></div>
+            <div class="campo"><label for="cert-serv">Cartório <span class="dica">(se souber)</span></label><input id="cert-serv" name="serventia" placeholder="ex.: 2º Ofício"></div></div>
+          <p class="mini" id="cert-previa" aria-live="polite" style="margin:0 0 .8rem"></p></fieldset>
         <fieldset><legend class="legenda">Modelo</legend><div class="opcoes opcoes--2">
           <label class="opcao"><input type="radio" name="modelo" value="Breve relato" checked><span><b>Breve relato</b><span>A comum, para a maioria dos usos</span></span></label>
           <label class="opcao"><input type="radio" name="modelo" value="Inteiro teor"><span><b>Inteiro teor</b><span>Cópia integral — cidadania, processos</span></span></label>
@@ -251,8 +256,6 @@ symbol.cheio{fill:currentColor;stroke:none}</style></defs>
           <div class="campo"><label for="cert-nome">Nome de quem consta na certidão</label><input id="cert-nome" name="nome" required autocomplete="off"></div>
           <div class="campo"><label for="cert-data">Data do registro/fato (aprox.)</label><input id="cert-data" name="data" placeholder="ex.: 2015 ou 12/03/2015"></div>
         </div>
-        <div class="linha2" id="cert-fora" hidden><div class="campo"><label for="cert-uf">Estado do registro</label><select id="cert-uf" name="uf"></select></div>
-          <div class="campo"><label for="cert-serv">Cartório e cidade do registro</label><input id="cert-serv" name="serventia" placeholder="ex.: 2º Cartório de Arapiraca/AL"></div></div>
         <div id="cert-saida" aria-live="polite"></div>
         <div class="acoes"><span class="mini">Valor pela tabela CRC do cartório. O Pix aparece na tela seguinte.</span><button class="bt" type="submit">Montar pedido e ver o Pix</button></div>
       </form>
