@@ -183,7 +183,7 @@ const MELHORIAS = [
   ['Formulário de habilitação on-line', 'Os campos do formulário complementar do cartório, preenchidos no site; o resultado é o próprio PDF oficial, preenchido no aparelho e ainda editável.', '#hab'],
   ['Leitura de documento por foto ou PDF', 'RG, CNH em foto e CNH digital em PDF: preenche o nome no formulário de habilitação e nome, CPF e nascimento no pré-cadastro. O reconhecimento roda no aparelho: o arquivo não é enviado nem guardado.', '#hab'],
   ['Pagamento da certidão por Pix', 'O pedido de 2ª via calcula o valor pela tabela CRC do cartório (materialização + emissão do estado de origem), mostra o QR Code e o “copia e cola” e envia o pedido por WhatsApp ou e-mail, onde o cliente anexa o comprovante.', '#certidoes'],
-  ['Pedido do certificado notarizado', 'Link oficial do e-Notariado já com este cartório escolhido, com o passo a passo e a explicação do que é o certificado.', '#enotariado'],
+  ['e-Notariado em destaque', 'Item próprio no menu e faixa no alto da página inicial, com o pedido oficial do certificado notarizado já com este cartório escolhido e o passo a passo.', '#enotariado'],
   ['Lembretes no calendário', 'Arquivo .ics do agendamento (com alarme 2 h antes) e das datas do casamento: entrada da habilitação e cerimônia.', '#casamento'],
 ];
 

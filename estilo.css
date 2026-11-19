@@ -87,8 +87,8 @@ svg.cheio{fill:currentColor;stroke:none}
 .estado i{width:8px;height:8px;border-radius:50%;background:#8D99AB}
 .estado.aberto i{background:#3CCB7F;box-shadow:0 0 0 4px rgb(60 203 127/.2)}
 .hamb{display:none}
-@media(max-width:1060px){.estado{display:none}}
-@media(max-width:900px){
+.topo .estado{display:none}   /* com nove itens no menu, o horário ao vivo não cabe na barra (a largura é a do container); ele segue no hero e no Contato */
+@media(max-width:1220px){
   .hamb{display:inline-grid}
   .menu{position:fixed;inset:var(--nav-h) 0 auto 0;flex-direction:column;background:var(--navy-900);padding:.5rem 1rem 1rem;
     border-bottom:1px solid rgb(255 255 255/.1);transform:translateY(-130%);transition:transform var(--t);margin:0}
@@ -348,3 +348,16 @@ mark{background:var(--superficie-2);color:var(--ouro-texto);padding:0 .3rem;bord
 .pix textarea{font:500 .78rem/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;min-height:0}
 /* cartões dentro da seção azul: o título herdava o branco da seção e sumia no cartão claro */
 .secao--navy .card,.secao--navy .card h3{color:var(--texto)}
+
+/* destaque do e-Notariado: item do menu e faixa na página inicial */
+.menu a.menu__destaque{color:var(--ouro-claro);box-shadow:inset 0 0 0 1px rgb(210 174 60/.55)}
+.menu a.menu__destaque:hover{background:rgb(210 174 60/.16);color:#fff}
+.faixa-enot{display:grid;gap:1rem 1.4rem;align-items:center;margin-bottom:1.6rem;padding:1.3rem 1.5rem;border-radius:var(--raio);color:#E8EDF4;
+  background:linear-gradient(110deg,var(--navy-900),var(--navy-700));border-left:5px solid var(--ouro);box-shadow:var(--sombra-2)}
+@media(min-width:760px){.faixa-enot{grid-template-columns:auto 1fr auto}}
+.faixa-enot__i{width:54px;height:54px;display:grid;place-items:center;border-radius:14px;background:rgb(210 174 60/.18);color:var(--ouro-claro)}.faixa-enot__i svg{width:26px;height:26px}
+.faixa-enot__txt .olho{margin:0 0 .2rem;color:var(--ouro-claro)}.faixa-enot__txt b{display:block;font:600 1.45rem/1.2 var(--f-titulo);color:#fff}.faixa-enot__txt span{display:block;margin-top:.25rem;font-size:.93rem;color:#B8C4D6}
+.faixa-enot__acoes{display:flex;flex-wrap:wrap;gap:.6rem}
+/* com nove itens, o menu não quebra linha e fica mais justo: abaixo de 1220 px vira o menu recolhido */
+.menu a{white-space:nowrap}
+@media(min-width:1221px){.menu a{padding-inline:.6rem}}
