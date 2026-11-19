@@ -183,6 +183,7 @@ const MELHORIAS = [
   ['Formulário de habilitação on-line', 'Os campos do formulário complementar do cartório, preenchidos no site; o resultado é o próprio PDF oficial, preenchido no aparelho e ainda editável.', '#hab'],
   ['Leitura de documento por foto ou PDF', 'RG, CNH em foto e CNH digital em PDF: preenche o nome no formulário de habilitação e nome, CPF e nascimento no pré-cadastro. O reconhecimento roda no aparelho: o arquivo não é enviado nem guardado.', '#hab'],
   ['Pagamento da certidão por Pix', 'O pedido de 2ª via calcula o valor pela tabela CRC do cartório (materialização + emissão do estado de origem), mostra o QR Code e o “copia e cola” e recebe o comprovante, que segue pelo WhatsApp ou e-mail.', '#certidoes'],
+  ['Pedido do certificado notarizado', 'Link oficial do e-Notariado já com este cartório escolhido, com o passo a passo e a explicação do que é o certificado.', '#enotariado'],
   ['Lembretes no calendário', 'Arquivo .ics do agendamento (com alarme 2 h antes) e das datas do casamento: entrada da habilitação e cerimônia.', '#casamento'],
 ];
 
@@ -1232,6 +1233,7 @@ const LINKS = [
   ['Registro Civil on-line (este cartório)', 'Pedido de certidões de nascimento, casamento e óbito registradas aqui.', 'https://www.registrocivil.net/2873?targetForm=T'],
   ['Portal oficial do Registro Civil', '2ª via de certidões de qualquer cartório do país, busca de registros e validação de certidão digital.', 'https://www.registrocivil.org.br/'],
   ['e-Proclamas', 'Editais de proclamas de casamento publicados pelos cartórios de registro civil.', 'https://proclamas.org.br/'],
+  ['Certificado notarizado (pedido a este cartório)', 'Página do e-Notariado para pedir o certificado digital notarizado, gratuito, já com este cartório escolhido.', 'https://www.e-notariado.org.br/customer/certificate-request?cns=2873'],
   ['e-Notariado', 'Plataforma oficial dos atos notariais eletrônicos e do certificado digital notarizado.', 'https://www.e-notariado.org.br/'],
   ['CENSEC', 'Central notarial que informa se existe escritura de separação, divórcio ou inventário.', 'https://censec.org.br/'],
   ['Busca Testamento', 'Certidão sobre a existência de testamento, exigida nos inventários.', 'https://buscatestamento.org.br/'],

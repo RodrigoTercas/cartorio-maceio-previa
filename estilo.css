@@ -346,3 +346,5 @@ mark{background:var(--superficie-2);color:var(--ouro-texto);padding:0 .3rem;bord
 .pix{display:grid;gap:1rem;align-items:start}@media(min-width:560px){.pix{grid-template-columns:200px 1fr}}
 .pix__qr{width:200px;max-width:100%;padding:8px;border-radius:var(--raio-sm);background:#fff;border:1px solid var(--borda)}.pix__qr svg{display:block;width:100%;height:auto}
 .pix textarea{font:500 .78rem/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;min-height:0}
+/* cartões dentro da seção azul: o título herdava o branco da seção e sumia no cartão claro */
+.secao--navy .card,.secao--navy .card h3{color:var(--texto)}
