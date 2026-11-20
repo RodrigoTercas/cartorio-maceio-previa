@@ -786,6 +786,7 @@ function itensCertidao(onde, uf) {
 const TABELA_AL = {
   fonte: 'Lei estadual nº 9.778, de 23/12/2025 (DOE-AL 29/12/2025), Anexo I — em vigor desde março de 2026',
   tsnr: 26,
+  iss: 5,          // ISS de Maceió sobre os emolumentos (%), informado pelo cartório em 11/2026
   faixas: [[2500, 178.62], [5000, 257.21], [7500, 436.86], [15000, 624.12], [25000, 873.80], [35000, 1092.27], [45000, 1341.95],
     [60000, 1716.47], [75000, 2090.99], [90000, 2434.30], [120000, 3183.34], [150000, 3901.17], [200000, 4494.16], [250000, 4900.16],
     [300000, 5306.11], [450000, 5712.11], [600000, 6118.11], [750000, 6524.11], [1e6, 6930.11], [1.5e6, 7539.67], [2e6, 8148.11],
@@ -857,13 +858,13 @@ const custas = (() => {
         <tr class="total"><td colspan="2">Total</td><td class="num">${brl(emol)}</td></tr></tbody></table></div>
       <p class="mini">Valor final pela tabela CRC do cartório: neste cartório, só a materialização; em outro cartório de Alagoas, o dobro; em outro estado, a materialização mais a emissão do estado de origem.</p>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="bt bt--p" href="#certidoes">${ic('arquivo')} Pedir a certidão e pagar por Pix</a></div></div>`;
-    const taxa = emol * TABELA_AL.tsnr / 100, total = emol + taxa;
+    const taxa = emol * TABELA_AL.tsnr / 100, iss = emol * TABELA_AL.iss / 100, total = emol + taxa + iss;
     saida.innerHTML = `<div class="resumo"><p class="olho">Estimativa</p><p class="preco">${brl(total)}</p><p class="mini">${esc(a.nome)}</p>
       <div class="tabela"><table><thead><tr><th>Componente</th><th>Item</th><th class="num">Valor</th></tr></thead><tbody>
         ${linhas.map((l) => `<tr><td>${esc(l[0])}</td><td class="item">${l[1]}</td><td class="num">${brl(l[2])}</td></tr>`).join('')}
         <tr><td>TSNR — taxa de fiscalização (${TABELA_AL.tsnr}%)</td><td class="item">art. 24</td><td class="num">${brl(taxa)}</td></tr>
-        <tr><td>ISS municipal sobre o emolumento</td><td class="item">Maceió</td><td class="num"><mark>[a serventia informa]</mark></td></tr>
-        <tr class="total"><td colspan="2">Total estimado (sem ISS)</td><td class="num">${brl(total)}</td></tr></tbody></table></div>
+        <tr><td>ISS de Maceió sobre o emolumento (${TABELA_AL.iss}%)</td><td class="item">municipal</td><td class="num">${brl(iss)}</td></tr>
+        <tr class="total"><td colspan="2">Total estimado</td><td class="num">${brl(total)}</td></tr></tbody></table></div>
       ${PRODUCAO ? '' : `<p class="mini" style="margin:.6rem 0 0">Parcelado no cartão <mark>[condições: a serventia informa]</mark>:</p><div class="parcelas">${[3, 6, 12].map((n) => `<span>${n}× de ${brl(total / n)}</span>`).join('')}</div>`}
       <p class="mini">Confira no <a href="https://emolumentos.tjal.jus.br/" target="_blank" rel="noopener">simulador oficial do TJAL</a>. Não inclui ITBI/ITCMD, registro de imóveis nem certidões de outros órgãos. O valor é conferido pelo cartório antes do ato.</p>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="bt bt--p" type="button" data-agendar="${sel.value in POR_ID ? sel.value : 'escritura'}">${ic('agenda')} Agendar este ato</button>
@@ -1471,12 +1472,12 @@ function cpfValido(s) {
   valor.addEventListener('input', () => { const n = valor.value.replace(/\D/g, '').slice(0, 13); valor.value = n ? brl(n / 100) : ''; });
   function desenhar() {
     const d = DADOS[tipo.value], v = +(valor.value.replace(/\D/g, '') || 0) / 100, linhas = ATOS_CUSTAS[tipo.value].linhas({ valor: v });
-    const emol = linhas ? linhas.reduce((s, l) => s + l[2], 0) : 0, total = emol * (1 + TABELA_AL.tsnr / 100);
+    const emol = linhas ? linhas.reduce((s, l) => s + l[2], 0) : 0, total = emol * (1 + (TABELA_AL.tsnr + TABELA_AL.iss) / 100);
     saida.innerHTML = `<div class="tabela comp"><table><thead><tr><th></th><th>Em cartório</th><th>Na Justiça</th></tr></thead><tbody>
       <tr><td>Quando cabe</td><td>${d.req[0]}</td><td>${d.req[1]}</td></tr>
       <tr><td>Advogado</td><td>Obrigatório (assina a escritura)</td><td>Obrigatório</td></tr>
       <tr><td>Prazo típico</td><td>${d.prazo[0]}</td><td>${d.prazo[1]}</td></tr>
-      <tr><td>Custas</td><td>${linhas ? `<b>${brl(total)}</b> (emolumentos + TSNR, sem ISS)` : 'Informe o valor dos bens'}</td><td>Custas judiciais do TJAL <mark>[a serventia informa]</mark></td></tr>
+      <tr><td>Custas</td><td>${linhas ? `<b>${brl(total)}</b> (emolumentos + TSNR + ISS)` : 'Informe o valor dos bens'}</td><td>Custas judiciais do TJAL <mark>[a serventia informa]</mark></td></tr>
       <tr><td>Onde</td><td>Qualquer tabelionato do país (Lei 8.935/1994, art. 8º)</td><td>Vara competente</td></tr></tbody></table></div>
       <p class="mini">Nos dois caminhos: honorários do advogado, ITCMD ao estado (inventário) e registro dos bens à parte. ${d.base}</p>`;
   }
